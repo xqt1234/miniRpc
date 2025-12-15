@@ -33,12 +33,15 @@ private:
 public:
     ThreadPool(int baseThreadNum = 4,int maxThreadNum = 4,int maxTaskNum = 10);
     ~ThreadPool();
+    
+    void start();
+    void setNums(int baseThreadNum = 4,int maxThreadNum = 4,int maxTaskNum = 10);
     void addTask(std::function<void()> f);
     template<typename Func,typename... Arg>
     auto addTask(Func&& func,Arg... args)->std::optional<std::future<std::invoke_result_t<Func,Arg...>>>
     {
         using RType = std::invoke_result_t<Func,Arg...>;
-        auto task = std::make_shared<std::packaged_task<RType>>(
+        auto task = std::make_shared<std::packaged_task<RType()>>(
             std::bind(std::forward<Func>(func),std::forward<Arg>(args)...)
         );
         std::future<RType> result = task->get_future();

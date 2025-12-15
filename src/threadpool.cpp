@@ -1,14 +1,9 @@
 #include "threadpool.h"
 
 ThreadPool::ThreadPool(int baseThreadNum, int maxThreadNum, int maxTaskNum)
-    : m_baseThreadNum(baseThreadNum), m_maxThreadNum(maxThreadNum), m_maxTaskNum(maxTaskNum), m_idleThreadNum(m_baseThreadNum), m_threadNum(m_baseThreadNum)
+    : m_baseThreadNum(baseThreadNum), m_maxThreadNum(maxThreadNum), m_maxTaskNum(maxTaskNum), m_idleThreadNum(m_baseThreadNum)
 {
-    m_managerThread = std::thread(&ThreadPool::manager, this);
-    for (int i = 0; i < m_baseThreadNum; ++i)
-    {
-        auto newThread = std::make_unique<std::thread>(&ThreadPool::worker, this);
-        m_ThreadMap[newThread->get_id()] = std::move(newThread);
-    }
+    
 }
 
 ThreadPool::~ThreadPool()
@@ -26,6 +21,29 @@ ThreadPool::~ThreadPool()
             }
         }
     }
+    if (m_managerThread.joinable())
+    {
+        m_managerThread.join();
+    }
+}
+
+void ThreadPool::start()
+{
+    m_managerThread = std::thread(&ThreadPool::manager, this);
+    for (int i = 0; i < m_baseThreadNum; ++i)
+    {
+        auto newThread = std::make_unique<std::thread>(&ThreadPool::worker, this);
+        m_ThreadMap[newThread->get_id()] = std::move(newThread);
+        
+    }
+    m_threadNum+= m_baseThreadNum;
+}
+
+void ThreadPool::setNums(int baseThreadNum, int maxThreadNum, int maxTaskNum)
+{
+    m_baseThreadNum = baseThreadNum;
+    m_maxTaskNum = maxThreadNum;
+    m_maxTaskNum = maxTaskNum;
 }
 
 void ThreadPool::addTask(std::function<void()> f)
@@ -74,6 +92,10 @@ void ThreadPool::manager()
         std::unique_lock<std::mutex> lock(m_idsMtx);
         m_managerCv.wait_for(lock, std::chrono::seconds(10), [&]()
                              { return m_ids.size() > 0 || m_stop.load(); });
+        if(m_stop)
+        {
+            break;
+        }
         if (m_ids.size() > 0)
         {
             std::lock_guard<std::mutex> lock(m_threadMapMtx);
@@ -82,7 +104,10 @@ void ThreadPool::manager()
                 auto it = m_ThreadMap.find(val);
                 if (it != m_ThreadMap.end())
                 {
-                    it->second->join();
+                    if(it->second->joinable())
+                    {
+                        it->second->join();
+                    }
                     m_ThreadMap.erase(it);
                 }
             }
