@@ -29,6 +29,11 @@ ThreadPool::~ThreadPool()
 
 void ThreadPool::start()
 {
+    if(!m_stop)
+    {
+        return;
+    }
+    m_stop = false;
     m_managerThread = std::thread(&ThreadPool::manager, this);
     for (int i = 0; i < m_baseThreadNum; ++i)
     {

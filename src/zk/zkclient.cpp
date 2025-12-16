@@ -5,8 +5,6 @@
 #include <time.h>
 #include <semaphore>
 #include "Logger.h"
-// typedef void (*watcher_fn)(zhandle_t *zh, int type,
-//         int state, const char *path,void *watcherCtx);
 void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx)
 {
     ZkClient *zk = (ZkClient *)(watcherCtx);
@@ -15,22 +13,24 @@ void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcher
     {
         if (state == ZOO_CONNECTED_STATE)
         {
+            
             sem_post(&zk->m_sem);
-            zk->m_connected = true;
+            std::cout << "11111" << std::endl;
         }
         else if (state == ZOO_EXPIRED_SESSION_STATE)
         {
-            zk->m_connected = false;
             zk->start();
+            std::cout << "2222" << std::endl;
         }
         else if (state == ZOO_CONNECTING_STATE)
         {
-            zk->m_connected = false;
+            std::cout << "33333" << std::endl;
         }
     }
     std::cout << "watcher 被调用 " << std::endl;
 }
-void custom_zookeeper_log(const char *message) {
+void custom_zookeeper_log(const char *message)
+{
     // 什么都不做，完全屏蔽日志
     // 或者只输出特定级别的日志
 }
@@ -52,8 +52,9 @@ ZkClient::~ZkClient()
 
 void ZkClient::reConnect()
 {
+    m_connected = false;
     std::cout << "正在连接zk..." << std::endl;
-    if(m_handle != nullptr)
+    if (m_handle != nullptr)
     {
         zookeeper_close(m_handle);
         m_handle = nullptr;
@@ -63,15 +64,31 @@ void ZkClient::reConnect()
     std::string hostaddr = host + ":" + port;
     sem_init(&m_sem, 0, 0);
     m_handle = zookeeper_init(hostaddr.c_str(), watcher, 1000, 0, this, 0);
-    zoo_set_log_callback(m_handle,custom_zookeeper_log);
+    zoo_set_log_callback(m_handle, custom_zookeeper_log);
     if (m_handle == nullptr)
     {
         std::cout << "zookeeper 初始化错误" << std::endl;
         return;
     }
     waitForConnection();
+    m_connected = true;
     std::cout << "线程号是" << std::this_thread::get_id() << std::endl;
 }
+struct CallbackContext
+{
+    int rc;
+    sem_t sem;
+    std::string value;
+    bool completed;
+    CallbackContext() : rc(-1), completed(false)
+    {
+        sem_init(&sem, 0, 0);
+    }
+    ~CallbackContext()
+    {
+        sem_destroy(&sem);
+    }
+};
 
 void ZkClient::waitForConnection()
 {
@@ -83,75 +100,94 @@ void ZkClient::waitForConnection()
         zookeeper_close(m_handle);
         m_handle = nullptr;
         LOG_ERROR("首次连接zookeeper时失败");
+        std::cout << "连接失败" << std::endl;
+    }else
+    {
+        std::cout << "连接成功" << std::endl;
     }
 }
+bool ZkClient::waitForAdd(CallbackContext &ctx, int timeout_seconds)
+{
+    if(ctx.completed)
+    {
+        return true;
+    }
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += timeout_seconds;
+    if (sem_timedwait(&ctx.sem, &ts) != 0)
+    {
+        std::cout << "检查节点存在超时" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
 void ZkClient::start()
 {
-    m_pool->addTask(std::bind(&ZkClient::reConnect,this));
+    m_pool->addTask(std::bind(&ZkClient::reConnect, this));
 }
-struct CallbackContext
-{
-    int rc;
-    sem_t sem;
-    std::string value;
-};
+
 
 void exists_callback(int rc, const struct Stat *stat, const void *data)
 {
     CallbackContext *ctx = (CallbackContext *)data;
     ctx->rc = rc;
+    ctx->completed = true;
     sem_post(&ctx->sem);
 }
 void createcomplete(int rc, const char *value, const void *data)
 {
     CallbackContext *ctx = (CallbackContext *)data;
     ctx->rc = rc;
+    ctx->completed = true;
     sem_post(&ctx->sem);
 }
-void ZkClient::createNode(std::string path, std::string value)
+
+
+bool ZkClient::createNode(std::string path, std::string value,int mode)
 {
-    if(m_handle == nullptr || m_connected == false)
+    if (m_handle == nullptr || m_connected == false)
     {
+        if(m_handle == nullptr)
+        {
+            std::cout << "m_handle为空" << std::endl;
+        }
+        if(m_connected == false)
+        {
+            std::cout << "m_connected为false" << std::endl;
+        }
         std::cout << "已经离线，等待连接" << std::endl;
-        return;
+        return false;
     }
     struct CallbackContext exist_ctx, create_ctx;
-    sem_init(&exist_ctx.sem, 0, 0);
     zoo_aexists(m_handle, path.c_str(), 0, exists_callback, &exist_ctx);
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 5;
-    if (sem_timedwait(&exist_ctx.sem, &ts) != 0)
+    if (!waitForAdd(exist_ctx))
     {
-        std::cout << "检查节点存在超时" << std::endl;
-        sem_destroy(&exist_ctx.sem);
-        return;
+        return false;
     }
-    sem_destroy(&exist_ctx.sem);
     if (exist_ctx.rc != ZNONODE)
     {
         if (exist_ctx.rc == ZOK)
         {
             std::cout << "节点已存在" << std::endl;
+            return true;
         }
         else
         {
             std::cout << "你没有权限查看" << std::endl;
         }
-        return;
+        std::cout << "---------" << std::endl;
+        return false;
     }
-    sem_init(&create_ctx.sem, 0, 0);
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 5;
-    zoo_acreate(m_handle, path.c_str(), value.c_str(), value.length(), &ZOO_READ_ACL_UNSAFE, ZOO_EPHEMERAL, createcomplete, &create_ctx);
-    if (sem_timedwait(&create_ctx.sem, &ts) != 0)
+    //ZOO_EPHEMERAL
+    zoo_acreate(m_handle, path.c_str(), value.c_str(), value.length(), &ZOO_OPEN_ACL_UNSAFE, mode, createcomplete, &create_ctx);
+    if (!waitForAdd(create_ctx))
     {
-        std::cout << "创建节点超时" << std::endl;
-        sem_destroy(&create_ctx.sem);
-        return;
+        return false;
     }
     std::cout << "怎么回事" << std::endl;
-    sem_destroy(&create_ctx.sem);
     std::cout << create_ctx.rc << std::endl;
     if (create_ctx.rc == ZOK)
     {
@@ -160,7 +196,9 @@ void ZkClient::createNode(std::string path, std::string value)
     else if (create_ctx.rc == ZCONNECTIONLOSS || create_ctx.rc == ZOPERATIONTIMEOUT)
     {
         std::cout << "连接断开或者超时" << std::endl;
+        return false;
     }
+    return true;
 }
 
 void node_data_completion_t(int rc, const char *value, int value_len,
@@ -176,24 +214,18 @@ void node_data_completion_t(int rc, const char *value, int value_len,
 }
 bool ZkClient::getNode(const std::string &path, std::string &value)
 {
-    if(m_handle == nullptr || m_connected == false)
+    if (m_handle == nullptr || m_connected == false)
     {
         std::cout << "已经离线，等待连接" << std::endl;
         return false;
     }
     struct CallbackContext ctx;
-    sem_init(&ctx.sem, 0, 0);
     zoo_aget(m_handle, path.c_str(), 0, node_data_completion_t, &ctx);
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    ts.tv_sec += 5;
-    if (sem_timedwait(&ctx.sem, &ts) != 0)
+    if (!waitForAdd(ctx))
     {
-        std::cout << "获取值失败" << std::endl;
-        sem_destroy(&ctx.sem);
+        std::cout << "获取失败" << std::endl;
         return false;
     }
-    sem_destroy(&ctx.sem);
     if (ctx.rc != ZOK)
     {
         return false;
@@ -207,6 +239,15 @@ struct GetChildrenCallbackContext
     int rc;                                 // 操作结果码
     std::vector<std::string> childrenNames; // 存储解析后的子节点名称
     struct Stat nodeStat;
+    bool completed;
+    GetChildrenCallbackContext() : rc(-1), completed(false)
+    {
+        sem_init(&sem, 0, 0);
+    }
+    ~GetChildrenCallbackContext()
+    {
+        sem_destroy(&sem);
+    }
 };
 void getStrings_completion_t(int rc,
                              const struct String_vector *strings, const void *data)
@@ -215,6 +256,7 @@ void getStrings_completion_t(int rc,
     if (rc == ZOK && strings != nullptr)
     {
         ctx->childrenNames.clear();
+        std::cout << "节点个数:" << strings->count << std::endl;
         for (int i = 0; i < strings->count; ++i)
         {
             ctx->childrenNames.push_back(std::string(strings->data[i]));
@@ -230,19 +272,22 @@ void getStrings_completion_t(int rc,
 std::vector<std::string> ZkClient::getNodeChildren(const std::string &path)
 {
     std::vector<std::string> childrenNames;
-    if(m_handle == nullptr || m_connected == false)
+    if (m_handle == nullptr || m_connected == false)
     {
         std::cout << "已经离线，等待连接" << std::endl;
         return childrenNames;
     }
     struct GetChildrenCallbackContext ctx;
-    
+
     zoo_aget_children(m_handle, path.c_str(), 0, getStrings_completion_t, &ctx);
     sem_init(&ctx.sem, 0, 0);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += 5;
-    sem_timedwait(&ctx.sem, &ts);
+    if(sem_timedwait(&ctx.sem, &ts) != 0)
+    {
+        std::cout << "查找子节点超时" << std::endl;
+    }
     childrenNames.swap(ctx.childrenNames);
     return childrenNames;
 }

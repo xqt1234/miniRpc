@@ -1,24 +1,60 @@
 #include "provider.h"
 #include "EventLoop.h"
-ProVider::ProVider()
+#include "Logger.h"
+ProVider::ProVider(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk)
+    :m_pool(pool)
+    ,m_zk(zk)
 {
-    
+    m_rootLoc = "/services";
+    bool res = m_zk->createNode(m_rootLoc,"",ZOO_PERSISTENT);
+    if(!res)
+    {
+        LOG_FATAL("zk根路径创建失败");
+    }
+}
+
+ProVider::~ProVider()
+{
+    if(m_loop)
+    {
+        m_loop->quit();
+    }
 }
 
 void ProVider::start()
 {
-    EventLoop loop;
-    TcpServer server(&loop,10002,"192.168.105.2");
-    server.setThreadNum(3);
-    server.setMessageCallBack(std::bind(&ProVider::onMessage,this,std::placeholders::_1,std::placeholders::_2));
-    server.setConnectionCallBack(std::bind(&ProVider::onConnection,this,std::placeholders::_1));
-
+    m_loop = std::make_unique<EventLoop>();
+    m_server = std::make_unique<TcpServer>(m_loop.get(),10002,"192.168.105.2");
+    m_server->setThreadNum(3);
+    m_server->setMessageCallBack(std::bind(&ProVider::onMessage,this,std::placeholders::_1,std::placeholders::_2));
+    m_server->setConnectionCallBack(std::bind(&ProVider::onConnection,this,std::placeholders::_1));
+    m_server->start();
+    m_pool->addTask([&]{
+        m_loop->loop();
+    });
 }
 
 void ProVider::AddService(std::shared_ptr<RpcService> service)
 {
-    m_serviceMap[service->m_name] = service;
     
+    m_serviceMap[service->m_name] = service;
+    std::cout << "----节点名称:" << service->m_name << std::endl;
+    std::string loc =  m_rootLoc + "/" + service->m_name;
+    std::string host = loc + "/" + "192.168.105.2:10003";
+    bool res = m_zk->createNode(loc,"",ZOO_PERSISTENT);
+    if(res)
+    {
+        std::vector<std::string> nodes = m_zk->getNodeChildren(m_rootLoc);
+        std::cout << "节点个数为:" << nodes.size() << std::endl;
+        res = m_zk->createNode(host,"",ZOO_EPHEMERAL);
+        if(!res)
+        {
+            std::cout << "创建节点失败" << std::endl;
+        }else
+        {
+            std::cout << "创建节点成功" << host << std::endl;
+        }
+    }
 }
 
 void ProVider::onMessage(const TcpConnectionPtr& conn,Buffer* buffer)

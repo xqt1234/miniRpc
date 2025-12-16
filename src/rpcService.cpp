@@ -1,9 +1,18 @@
 #include "rpcService.h"
 
-RpcService::RpcService(std::shared_ptr<ThreadPool> pool)
+RpcService::RpcService()
 {
-    m_pool = pool;
-    m_zk = std::make_unique<ZkClient>(pool);
+    
+}
+
+const std::string &RpcService::getname() const
+{
+    return m_name;
+}
+
+void RpcService::setServiceName(const std::string &name)
+{
+    m_name = name;
 }
 
 void RpcService::addMethod(std::string &name, RpcMethod method)
@@ -14,10 +23,6 @@ void RpcService::addMethod(std::string &name, RpcMethod method)
 void RpcService::addAsyncMethod(std::string &name, RpcAsyncMethod method)
 {
     m_ansyncMethodMap[name] = std::move(method);
-    std::string loc = "/services/" + name;
-    std::string host = loc + "/" + "192.168.105.2:10003";
-    m_zk->createNode(loc,"");
-    m_zk->createNode(host,"");
 }
 
 bool RpcService::CallMethod(std::string &methodname, const std::string &request, std::string &response)

@@ -24,12 +24,11 @@ private:
     int m_maxTaskNum;
     std::atomic<int> m_idleThreadNum;
     std::atomic<int> m_threadNum;
-    std::atomic<bool> m_stop{false};
+    std::atomic<bool> m_stop{true};
     std::unordered_map<std::thread::id,std::unique_ptr<std::thread>> m_ThreadMap;
     std::mutex m_threadMapMtx;
     std::vector<std::thread::id> m_ids;
     std::mutex m_idsMtx;
-    
 public:
     ThreadPool(int baseThreadNum = 4,int maxThreadNum = 4,int maxTaskNum = 10);
     ~ThreadPool();

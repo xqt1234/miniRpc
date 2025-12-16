@@ -3,43 +3,24 @@
 #include <thread>
 #include "threadpool.h"
 #include <chrono>
-
+#include "provider.h"
+#include "rpcService.h"
+#include "connectionPool.h"
+#include <vector>
 int main()
 {
     std::shared_ptr<ThreadPool> pool = std::make_shared<ThreadPool>();
     pool->start();
-    ZkClient client(pool);
-    client.start();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::cout << "hello world" << std::endl;
-    client.createNode("/aaaa", "hello");
+    //ZkClient client(pool);
+    std::shared_ptr<ZkClient> client = std::make_shared<ZkClient>(pool);
+    client->reConnect();
+    ProVider provider(pool,client);
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    std::string result;
-    std::string path = "/aaaa";
-    bool res = client.getNode(path, result);
-    if (res)
-    {
-        std::cout << result << std::endl;
-    }
-    else
-    {
-        std::cout << "获取失败" << std::endl;
-    }
-    for (int i = 0; i < 10; ++i)
-    {
-        result = "";
-        std::this_thread::sleep_for(std::chrono::seconds(100));
-        res = client.getNode(path, result);
-        if (res)
-        {
-            std::cout << result << std::endl;
-        }
-        else
-        {
-            std::cout << "获取失败" << std::endl;
-        }
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-    }
-
+    std::shared_ptr<RpcService> service = std::make_shared<RpcService>();
+    service->setServiceName("UserService");
+    provider.AddService(service);
+    ConnectionPool connPool(pool,client);
+    connPool.initNode();
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     return 0;
 }

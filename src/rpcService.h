@@ -13,11 +13,11 @@ private:
     std::unordered_map<std::string,RpcMethod> m_methodMap;
     std::unordered_map<std::string,RpcAsyncMethod> m_ansyncMethodMap;
     friend class ProVider;
-    std::unique_ptr<ZkClient> m_zk;
-    std::shared_ptr<ThreadPool> m_pool;
 public:
-    RpcService(std::shared_ptr<ThreadPool> pool);
+    RpcService();
     ~RpcService() = default;
+    const std::string& getname()const;
+    void setServiceName(const std::string& name);
     void addMethod(std::string& name,RpcMethod method);
     void addAsyncMethod(std::string& name,RpcAsyncMethod method);
     bool CallMethod(std::string& methodname,const std::string& request,std::string& response);
