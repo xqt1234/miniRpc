@@ -7,6 +7,8 @@
 #include "rpcService.h"
 #include "connectionPool.h"
 #include <vector>
+#include <ranges>
+#include <string_view>
 int main()
 {
     std::shared_ptr<ThreadPool> pool = std::make_shared<ThreadPool>();
@@ -17,10 +19,14 @@ int main()
     ProVider provider(pool,client);
     std::this_thread::sleep_for(std::chrono::seconds(2));
     std::shared_ptr<RpcService> service = std::make_shared<RpcService>();
-    service->setServiceName("UserService");
+    
+    
+    
+    service->setServiceName("UserService2");
     provider.AddService(service);
+
     ConnectionPool connPool(pool,client);
     connPool.initNode();
-    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::this_thread::sleep_for(std::chrono::seconds(40));
     return 0;
 }

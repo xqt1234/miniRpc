@@ -26,6 +26,26 @@ void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcher
         {
             std::cout << "33333" << std::endl;
         }
+    }else if (type == ZOO_CHILD_EVENT)  // 子节点变化事件
+    {
+        std::cout << "------子节点变化: " << path << std::endl;
+        zk->updateNode(path);
+    }
+    else if (type == ZOO_CHANGED_EVENT)  // 节点数据变化事件
+    {
+        std::cout << "--------节点数据变化: " << path << std::endl;
+    }
+    else if (type == ZOO_CREATED_EVENT)  // 节点创建事件
+    {
+        std::cout << "--------节点创建: " << path << std::endl;
+    }
+    else if (type == ZOO_DELETED_EVENT)  // 节点删除事件
+    {
+        std::cout << "--------节点删除: " << path << std::endl;
+    }
+    else if (type == ZOO_NOTWATCHING_EVENT)  // watcher被移除事件
+    {
+        std::cout << "---------watcher被移除: " << path << std::endl;
     }
     std::cout << "watcher 被调用 " << std::endl;
 }
@@ -106,6 +126,9 @@ void ZkClient::waitForConnection()
         std::cout << "连接成功" << std::endl;
     }
 }
+
+
+
 bool ZkClient::waitForAdd(CallbackContext &ctx, int timeout_seconds)
 {
     if(ctx.completed)
@@ -123,12 +146,17 @@ bool ZkClient::waitForAdd(CallbackContext &ctx, int timeout_seconds)
     return true;
 }
 
-
 void ZkClient::start()
 {
     m_pool->addTask(std::bind(&ZkClient::reConnect, this));
 }
-
+void ZkClient::updateNode(const std::string& path)
+{
+    if(m_NodeUpdateCallBack)
+    {
+        m_pool->addTask(m_NodeUpdateCallBack,path);
+    }
+}
 
 void exists_callback(int rc, const struct Stat *stat, const void *data)
 {
@@ -136,6 +164,21 @@ void exists_callback(int rc, const struct Stat *stat, const void *data)
     ctx->rc = rc;
     ctx->completed = true;
     sem_post(&ctx->sem);
+}
+
+bool ZkClient::setWatch(std::string path)
+{
+    if (m_handle == nullptr || m_connected == false)
+    {
+        return false;
+    }
+    struct CallbackContext exist_ctx;
+    zoo_aexists(m_handle, path.c_str(), 1, exists_callback, &exist_ctx);
+    if (!waitForAdd(exist_ctx))
+    {
+        return false;
+    }
+    return true;
 }
 void createcomplete(int rc, const char *value, const void *data)
 {
@@ -212,27 +255,27 @@ void node_data_completion_t(int rc, const char *value, int value_len,
     }
     sem_post(&ctx->sem);
 }
-bool ZkClient::getNode(const std::string &path, std::string &value)
-{
-    if (m_handle == nullptr || m_connected == false)
-    {
-        std::cout << "已经离线，等待连接" << std::endl;
-        return false;
-    }
-    struct CallbackContext ctx;
-    zoo_aget(m_handle, path.c_str(), 0, node_data_completion_t, &ctx);
-    if (!waitForAdd(ctx))
-    {
-        std::cout << "获取失败" << std::endl;
-        return false;
-    }
-    if (ctx.rc != ZOK)
-    {
-        return false;
-    }
-    value = ctx.value;
-    return true;
-}
+// bool ZkClient::getNode(const std::string &path, std::string &value)
+// {
+//     if (m_handle == nullptr || m_connected == false)
+//     {
+//         std::cout << "已经离线，等待连接" << std::endl;
+//         return false;
+//     }
+//     struct CallbackContext ctx;
+//     zoo_aget(m_handle, path.c_str(), 0, node_data_completion_t, &ctx);
+//     if (!waitForAdd(ctx))
+//     {
+//         std::cout << "获取失败" << std::endl;
+//         return false;
+//     }
+//     if (ctx.rc != ZOK)
+//     {
+//         return false;
+//     }
+//     value = ctx.value;
+//     return true;
+// }
 struct GetChildrenCallbackContext
 {
     sem_t sem;
@@ -269,7 +312,10 @@ void getStrings_completion_t(int rc,
     }
     sem_post(&ctx->sem);
 }
-std::vector<std::string> ZkClient::getNodeChildren(const std::string &path)
+
+
+
+std::vector<std::string> ZkClient::getNodeChildren(const std::string &path,int watch)
 {
     std::vector<std::string> childrenNames;
     if (m_handle == nullptr || m_connected == false)
@@ -278,8 +324,8 @@ std::vector<std::string> ZkClient::getNodeChildren(const std::string &path)
         return childrenNames;
     }
     struct GetChildrenCallbackContext ctx;
+    zoo_aget_children(m_handle,path.c_str(),1,getStrings_completion_t,&ctx);
 
-    zoo_aget_children(m_handle, path.c_str(), 0, getStrings_completion_t, &ctx);
     sem_init(&ctx.sem, 0, 0);
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
@@ -291,3 +337,8 @@ std::vector<std::string> ZkClient::getNodeChildren(const std::string &path)
     childrenNames.swap(ctx.childrenNames);
     return childrenNames;
 }
+
+    // ZOOAPI int zoo_awget_children(zhandle_t *zh, const char *path,
+    //     watcher_fn watcher, void* watcherCtx,
+    //     strings_completion_t completion, const void *data);
+        //zoo_awget_children(m_handle, path.c_str(),watcher ,&ctx, getStrings_completion_t,this );

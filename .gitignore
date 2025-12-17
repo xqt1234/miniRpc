@@ -42,4 +42,4 @@
 *.log
 /build
 /bin
-/src/ThirdParty
+/ThirdParty

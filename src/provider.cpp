@@ -40,8 +40,8 @@ void ProVider::AddService(std::shared_ptr<RpcService> service)
     m_serviceMap[service->m_name] = service;
     std::cout << "----节点名称:" << service->m_name << std::endl;
     std::string loc =  m_rootLoc + "/" + service->m_name;
-    std::string host = loc + "/" + "192.168.105.2:10003";
     bool res = m_zk->createNode(loc,"",ZOO_PERSISTENT);
+    std::string host = loc + "/" + "192.168.105.2:10003";
     if(res)
     {
         std::vector<std::string> nodes = m_zk->getNodeChildren(m_rootLoc);
