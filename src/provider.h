@@ -14,8 +14,8 @@ private:
     std::shared_ptr<ZkClient> m_zk;
     std::shared_ptr<ThreadPool> m_pool;
     std::string m_rootLoc;
-    std::unique_ptr<EventLoop> m_loop;
-    std::unique_ptr<TcpServer> m_server;
+    std::unique_ptr<mymuduo::EventLoop> m_loop;
+    std::unique_ptr<mymuduo::TcpServer> m_server;
 public:
     ProVider(std::shared_ptr<ThreadPool> pool,std::shared_ptr<ZkClient> zk);
     ~ProVider();
@@ -23,7 +23,7 @@ public:
     void AddService(std::shared_ptr<RpcService> service);
     //bool callAsyncServiceMethod(const std::string& servicename,const std::string& methodname,const std::string& request,std::function<void(std::string)>);
     //ThreadPool m_threadPool;
-    void onMessage(const TcpConnectionPtr& conn,Buffer* buffer);
-    void onConnection(const TcpConnectionPtr& conn);
+    void onMessage(const mymuduo::TcpConnectionPtr& conn,mymuduo::Buffer* buffer);
+    void onConnection(const mymuduo::TcpConnectionPtr& conn);
 
 };

@@ -9,8 +9,8 @@
 class ConnectionPool
 {
 private:
-    std::unordered_map<std::string,std::vector<std::shared_ptr<TcpClient>>> m_AllclientMap;
-    std::unordered_map<std::string,std::vector<std::shared_ptr<TcpClient>>> m_clientMap;
+    std::unordered_map<std::string,std::vector<std::shared_ptr<mymuduo::TcpClient>>> m_AllclientMap;
+    std::unordered_map<std::string,std::vector<std::shared_ptr<mymuduo::TcpClient>>> m_clientMap;
     std::unordered_map<std::string,int> m_currentUse;
     std::shared_ptr<ThreadPool> m_pool;
     std::shared_ptr<ZkClient> m_zk;
@@ -19,15 +19,16 @@ private:
 public:
     ConnectionPool(std::shared_ptr<ThreadPool> pool,std::shared_ptr<ZkClient> zk);
     ~ConnectionPool();
-    std::shared_ptr<TcpClient> getConnection(const std::string& servicename);
+    std::shared_ptr<mymuduo::TcpClient> getConnection(const std::string& servicename);
     void initNode();
     void checkClients();
     void updateClients(const std::string& path);
 private:
     void startLoop();
-    std::unique_ptr<EventLoop> m_loop;
+    std::unique_ptr<mymuduo::EventLoop> m_loop;
     void updateClient(std::string servicename);
     void checkService();
     void createTcpClient(const std::string& ipPort,const std::string& clientName,const std::string& servicename);
+    void sendHeart();
 };
 

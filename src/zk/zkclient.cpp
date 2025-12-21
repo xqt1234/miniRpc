@@ -5,6 +5,7 @@
 #include <time.h>
 #include <semaphore>
 #include "Logger.h"
+using namespace mymuduo;
 void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx)
 {
     ZkClient *zk = (ZkClient *)(watcherCtx);

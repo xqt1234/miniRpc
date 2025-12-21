@@ -16,6 +16,15 @@ fi
 #     cp `pwd`/src/client/*.ini `pwd`/bin/
 # fi
 
+if [ ! -d `pwd`/ThirdParty/minirpc ];then
+    mkdir -p `pwd`/ThirdParty/minirpc
+    mkdir `pwd`/ThirdParty/minirpc/include
+    mkdir `pwd`/ThirdParty/minirpc/lib
+    cp `pwd`/src/*.h `pwd`/ThirdParty/minirpc/include/
+    cp `pwd`/src/zk/*.h `pwd`/ThirdParty/minirpc/include/
+    cp `pwd`/lib/*.so `pwd`/ThirdParty/minirpc/lib/
+fi
+
 if ls `pwd`/bin/log/*.log >/dev/null 2>&1;then
     rm  `pwd`/bin/log/*.log
 fi

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <ranges>
 #include <string_view>
+using namespace mymuduo;
 ConnectionPool::ConnectionPool(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk)
     : m_pool(pool), m_zk(zk), m_loop(std::make_unique<EventLoop>())
 {
@@ -23,7 +24,7 @@ ConnectionPool::~ConnectionPool()
         m_thread.join();
     }
 }
-std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &servicename)
+std::shared_ptr<mymuduo::TcpClient> ConnectionPool::getConnection(const std::string &servicename)
 {
     auto it = m_clientMap.find(servicename);
     if (it != m_clientMap.end())
@@ -80,10 +81,10 @@ void ConnectionPool::startLoop()
 
 void ConnectionPool::updateClient(std::string servicename)
 {
-    std::vector<std::shared_ptr<TcpClient>> &clients = m_clientMap[servicename];
+    std::vector<std::shared_ptr<mymuduo::TcpClient>> &clients = m_clientMap[servicename];
     std::string path = "/services/" + servicename;
     std::vector<std::string> res = m_zk->getNodeChildren(path);
-    std::vector<std::shared_ptr<TcpClient>> &clients = m_clientMap[servicename];
+    std::vector<std::shared_ptr<mymuduo::TcpClient>> &tmpclients = m_clientMap[servicename];
     std::cout << "打印服务ip地址" << std::endl;
     for (auto &val : res)
     {
@@ -107,11 +108,13 @@ void ConnectionPool::updateClient(std::string servicename)
 void ConnectionPool::createTcpClient(const std::string &ipPort, const std::string &clientName, const std::string &servicename)
 {
     std::vector<std::shared_ptr<TcpClient>> &tvec = m_AllclientMap[servicename];
-    auto it = std::find(tvec.begin(), tvec.end(), clientName);
-    if (it != tvec.end())
+    for(auto& val : tvec)
     {
-        // 有正在重连的，等待重连即可。
-        return;
+        if(val->name() == clientName)
+        {
+            // 有正在重连的，等待重连即可。
+            return;
+        }
     }
     int index = ipPort.find(":");
     std::string addr = ipPort.substr(0, index);
@@ -123,6 +126,7 @@ void ConnectionPool::createTcpClient(const std::string &ipPort, const std::strin
                                   {
                     if (conn->isConnected()) {
                         m_clientMap[clientName].push_back(client);
+                        
                     } else {
                         std::vector<std::shared_ptr<TcpClient>>& tvec = m_clientMap[clientName];
                         auto it = std::find(tvec.begin(),tvec.end(),client);
@@ -130,15 +134,17 @@ void ConnectionPool::createTcpClient(const std::string &ipPort, const std::strin
                         {
                             tvec.erase(it);
                         }
-                        std::vector<std::shared_ptr<TcpClient>>& tvec2 = m_AllclientMap[clientName];
-                        auto it2 = std::find(tvec2.begin(),tvec2.end(),client);
-                        if(it2 != tvec2.end())
-                        {
-                            tvec2.erase(it2);
-                        }
+                        // 断开自动重连
+                        client->connect();
                     } });
+    client->setRetry(true);
     client->connect();
     tvec.push_back(client);
+}
+
+void ConnectionPool::sendHeart()
+{
+
 }
 
 void ConnectionPool::checkService()

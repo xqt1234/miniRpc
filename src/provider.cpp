@@ -1,6 +1,7 @@
 #include "provider.h"
 #include "EventLoop.h"
 #include "Logger.h"
+using namespace mymuduo;
 ProVider::ProVider(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk)
     :m_pool(pool)
     ,m_zk(zk)
