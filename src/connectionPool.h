@@ -6,20 +6,23 @@
 #include <atomic>
 #include "EventLoop.h"
 #include <vector>
+#include "TcpConnection.h"
+using namespace mymuduo;
 class ConnectionPool
 {
 private:
-    std::unordered_map<std::string,std::vector<std::shared_ptr<mymuduo::TcpClient>>> m_AllclientMap;
-    std::unordered_map<std::string,std::vector<std::shared_ptr<mymuduo::TcpClient>>> m_clientMap;
+    std::unordered_map<std::string,std::vector<std::shared_ptr<TcpClient>>> m_activeClientMap;
+    std::unordered_map<std::string,std::vector<std::shared_ptr<TcpClient>>> m_allClientMap;
     std::unordered_map<std::string,int> m_currentUse;
     std::shared_ptr<ThreadPool> m_pool;
     std::shared_ptr<ZkClient> m_zk;
     std::thread m_thread;
     std::atomic<bool> m_stop{false};
+    TcpClient* m_client;
 public:
     ConnectionPool(std::shared_ptr<ThreadPool> pool,std::shared_ptr<ZkClient> zk);
     ~ConnectionPool();
-    std::shared_ptr<mymuduo::TcpClient> getConnection(const std::string& servicename);
+    std::shared_ptr<TcpClient> getConnection(const std::string& servicename);
     void initNode();
     void checkClients();
     void updateClients(const std::string& path);
@@ -30,5 +33,7 @@ private:
     void checkService();
     void createTcpClient(const std::string& ipPort,const std::string& clientName,const std::string& servicename);
     void sendHeart();
+    void newConnection(const mymuduo::TcpConnectionPtr& conn);
+    void onMessage(const TcpConnectionPtr &conn, Buffer *buffer);
 };
 

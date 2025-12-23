@@ -124,7 +124,7 @@ void ZkClient::waitForConnection()
         std::cout << "连接失败" << std::endl;
     }else
     {
-        std::cout << "连接成功" << std::endl;
+        std::cout << "zk连接成功" << std::endl;
     }
 }
 

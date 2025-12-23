@@ -11,7 +11,7 @@ class ZkClient
 {
 
 public:
-    zhandle_t* m_handle;
+    zhandle_t* m_handle{nullptr};
     sem_t m_sem;
     bool m_connected{false};
     std::shared_ptr<ThreadPool> m_pool;

@@ -17,7 +17,7 @@ private:
     std::unique_ptr<mymuduo::EventLoop> m_loop;
     std::unique_ptr<mymuduo::TcpServer> m_server;
 public:
-    ProVider(std::shared_ptr<ThreadPool> pool,std::shared_ptr<ZkClient> zk);
+    ProVider();
     ~ProVider();
     void start();
     void AddService(std::shared_ptr<RpcService> service);

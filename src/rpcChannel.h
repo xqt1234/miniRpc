@@ -5,6 +5,7 @@
 #include "zkclient.h"
 #include "TcpClient.h"
 #include "connectionPool.h"
+#include <unordered_map>
 class RpcChannel
 {
 private:

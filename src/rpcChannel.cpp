@@ -15,6 +15,17 @@ void RpcChannel::callMethodAsync(const std::string &serviceName,
     const std::string &methodName, const std::string &request,
      std::function<void(const std::string &)> callback)
 {
-    std::shared_ptr<TcpClient> client = m_connPool->getConnection(serviceName);
-    client->connection()->send(request);
+    // m_connPool->testCreateClient();
+    // return;
+    auto client = m_connPool->getConnection(serviceName);
+    if(client == nullptr)
+    {
+        return;
+    }
+    TcpConnectionPtr conn = client->connection();
+    if(conn && conn->isConnected())
+    {
+        conn->send(request);
+        std::cout << "发送成功" << std::endl;
+    }
 }
