@@ -15,7 +15,7 @@ fi
 #     cp `pwd`/src/server/*.sql `pwd`/bin/
 #     cp `pwd`/src/client/*.ini `pwd`/bin/
 # fi
-
+rm -rf `pwd`/ThirdParty/minirpc
 if [ ! -d `pwd`/ThirdParty/minirpc ];then
     mkdir -p `pwd`/ThirdParty/minirpc
     mkdir `pwd`/ThirdParty/minirpc/include

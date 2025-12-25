@@ -105,6 +105,10 @@ void ConnectionPool::updateClients(const std::string &path)
     }
 }
 
+void ConnectionPool::setMessageCallBack(std::function<void(const std::string&)> cb)
+{
+    m_msgCallBack = cb;
+}
 
 void ConnectionPool::startLoop()
 {
@@ -205,7 +209,10 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
 void ConnectionPool::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
     std::string msg = buffer->readAllAsString();
-    std::cout <<"收到消息:" << msg << std::endl;
+    if(m_msgCallBack)
+    {
+        m_msgCallBack(msg);
+    }
     // conn->send(msg);
 }
 void ConnectionPool::checkService()

@@ -19,13 +19,14 @@ private:
     std::thread m_thread;
     std::atomic<bool> m_stop{false};
     TcpClient* m_client;
+    std::function<void(const std::string&)> m_msgCallBack;
 public:
     ConnectionPool(std::shared_ptr<ThreadPool> pool,std::shared_ptr<ZkClient> zk);
     ~ConnectionPool();
     std::shared_ptr<TcpClient> getConnection(const std::string& servicename);
-    void initNode();
     void checkClients();
     void updateClients(const std::string& path);
+    void setMessageCallBack(std::function<void(const std::string&)> cb);
 private:
     void startLoop();
     std::unique_ptr<mymuduo::EventLoop> m_loop;

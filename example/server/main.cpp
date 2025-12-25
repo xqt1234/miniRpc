@@ -1,6 +1,5 @@
 #include <iostream>
 #include "provider.h"
-
 int main()
 {
     ProVider provider;
