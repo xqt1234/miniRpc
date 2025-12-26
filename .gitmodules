@@ -1,0 +1,3 @@
+[submodule "ThirdParty/newmuduo"]
+	path = ThirdParty/newmuduo
+	url = git@github.com:xqt1234/networklibrary.git

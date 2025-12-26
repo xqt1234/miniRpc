@@ -42,4 +42,5 @@
 *.log
 /build
 /bin
-/ThirdParty
+/lib
+/include

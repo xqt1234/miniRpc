@@ -6,7 +6,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20 -fPIC -fsanitize=address -
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++20")
 # include_directories(${PROJECT_SOURCE_DIR}/src)
 
+
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 #add_subdirectory(src/server)
+file(GLOB HEADER_FILES 
+     ${PROJECT_SOURCE_DIR}/src/*.h
+     ${PROJECT_SOURCE_DIR}/src/zk/*.h)
+if(HEADER_FILES)
+    file(COPY ${HEADER_FILES} DESTINATION ${PROJECT_SOURCE_DIR}/include/)
+endif()
+add_subdirectory(ThirdParty/newmuduo)
 add_subdirectory(src)
 add_subdirectory(example)

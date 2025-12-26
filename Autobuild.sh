@@ -2,6 +2,14 @@
 
 set -e
 set -u
+arg="${1:-}"
+# if [ "$arg" == "copy" ];then
+    
+# fi
+# rm -rf `pwd`/include
+# mkdir `pwd`/include
+# cp `pwd`/src/*.h `pwd`/include/
+# cp `pwd`/src/zk/*.h `pwd`/include/
 
 if [ ! -d `pwd`/build ];then
     mkdir `pwd`/build
@@ -15,15 +23,7 @@ fi
 #     cp `pwd`/src/server/*.sql `pwd`/bin/
 #     cp `pwd`/src/client/*.ini `pwd`/bin/
 # fi
-rm -rf `pwd`/ThirdParty/minirpc
-if [ ! -d `pwd`/ThirdParty/minirpc ];then
-    mkdir -p `pwd`/ThirdParty/minirpc
-    mkdir `pwd`/ThirdParty/minirpc/include
-    mkdir `pwd`/ThirdParty/minirpc/lib
-    cp `pwd`/src/*.h `pwd`/ThirdParty/minirpc/include/
-    cp `pwd`/src/zk/*.h `pwd`/ThirdParty/minirpc/include/
-    cp `pwd`/lib/*.so `pwd`/ThirdParty/minirpc/lib/
-fi
+
 
 if ls `pwd`/bin/log/*.log >/dev/null 2>&1;then
     rm  `pwd`/bin/log/*.log
