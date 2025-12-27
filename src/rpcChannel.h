@@ -14,12 +14,9 @@ namespace miniRpc
     {
     public:
     private:
-        std::shared_ptr<ThreadPool> m_threadPool;
         std::shared_ptr<ConnectionPool> m_connPool;
-        std::shared_ptr<ZkClient> m_client;
         std::unordered_map<int, std::function<void(std::string)>> m_requestMap;
         std::atomic<int64_t> m_requestId{0};
-
     public:
         RpcChannel();
         ~RpcChannel() = default;

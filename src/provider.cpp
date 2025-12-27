@@ -1,12 +1,14 @@
 #include "provider.h"
 #include "EventLoop.h"
 #include "Logger.h"
+#include "rpcApplication.h"
 using namespace mymuduo;
 using namespace miniRpc;
-ProVider::ProVider(std::string ip, int16_t port)
-    :m_pool(nullptr), m_zk(nullptr)
-    ,m_ip(ip),m_port(port)
+miniRpc::ProVider::ProVider()
 {
+    RpcConfig& conf = RpcApplication::getRpcConfig();
+    m_rpcIp = RpcApplication::getRpcConfig().getValue("rpcserverip");
+    m_rpcPort = atoi(RpcApplication::getRpcConfig().getValue("rpcserverport").c_str());
     start();
 }
 
@@ -20,39 +22,36 @@ ProVider::~ProVider()
 
 void ProVider::start()
 {
-    m_pool = std::make_shared<ThreadPool>();
-    m_pool->start();
-    m_zk = std::make_shared<ZkClient>(m_pool);
-    m_zk->reConnect();
     m_rootLoc = "/services";
-    bool res = m_zk->createNode(m_rootLoc, "", ZOO_PERSISTENT);
+    bool res = RpcApplication::getZkClient().createNode(m_rootLoc, "", ZOO_PERSISTENT);
     if (!res)
     {
         LOG_FATAL("zk根路径创建失败");
     }
     m_loop = std::make_unique<EventLoop>();
-    m_server = std::make_unique<TcpServer>(m_loop.get(), m_port, m_ip);
+    m_server = std::make_unique<TcpServer>(m_loop.get(), m_rpcPort, m_rpcIp);
     m_server->setThreadNum(3);
     m_server->setMessageCallBack(std::bind(&ProVider::onMessage, this, std::placeholders::_1, std::placeholders::_2));
     m_server->setConnectionCallBack(std::bind(&ProVider::onConnection, this, std::placeholders::_1));
     m_server->start();
-    m_pool->addTask([&]
+    RpcApplication::getThreadPool().addTask([&]
                     { m_loop->loop(); });
 }
 
 void ProVider::AddService(std::shared_ptr<RpcService> service)
 {
-
     m_serviceMap[service->m_name] = service;
     std::cout << "----节点名称:" << service->m_name << std::endl;
     std::string loc = m_rootLoc + "/" + service->m_name;
-    bool res = m_zk->createNode(loc, "", ZOO_PERSISTENT);
-    std::string host = loc + "/" + "192.168.105.2:10002";
+    ZkClient& zk = RpcApplication::getZkClient();
+    bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
+    std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
+    std::string host = loc + "/" + ip;
     if (res)
     {
-        std::vector<std::string> nodes = m_zk->getNodeChildren(m_rootLoc);
+        std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
         std::cout << "节点个数为:" << nodes.size() << std::endl;
-        res = m_zk->createNode(host, "", ZOO_EPHEMERAL);
+        res = zk.createNode(host, "", ZOO_EPHEMERAL);
         if (!res)
         {
             std::cout << "创建节点失败" << std::endl;

@@ -6,14 +6,17 @@
 #include <ranges>
 #include <string_view>
 #include <functional>
+#include <rpcApplication.h>
 using namespace mymuduo;
 using namespace miniRpc;
-ConnectionPool::ConnectionPool(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk)
-    : m_pool(pool), m_zk(zk), m_loop(std::make_unique<EventLoop>())
+ConnectionPool::ConnectionPool()
+    : m_loop(std::make_unique<EventLoop>())
     ,m_client(nullptr)
 {
     m_activeClientMap.clear();
     m_allClientMap.clear();
+    m_zk = &RpcApplication::getZkClient();
+    m_pool = &RpcApplication::getThreadPool();
     m_thread = std::thread(&ConnectionPool::startLoop, this);
     m_zk->setNodeUpdateCallBack(std::bind(&ConnectionPool::updateClients, this, std::placeholders::_1));
     m_zk->setWatch("/services");

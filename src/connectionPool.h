@@ -7,6 +7,7 @@
 #include "EventLoop.h"
 #include <vector>
 #include "TcpConnection.h"
+#include <functional>
 using namespace mymuduo;
 namespace miniRpc
 {
@@ -16,15 +17,15 @@ namespace miniRpc
         std::unordered_map<std::string, std::vector<std::shared_ptr<TcpClient>>> m_activeClientMap;
         std::unordered_map<std::string, std::vector<std::shared_ptr<TcpClient>>> m_allClientMap;
         std::unordered_map<std::string, int> m_currentUse;
-        std::shared_ptr<ThreadPool> m_pool;
-        std::shared_ptr<ZkClient> m_zk;
+        ThreadPool* m_pool;
+        ZkClient* m_zk;
         std::thread m_thread;
         std::atomic<bool> m_stop{false};
         TcpClient *m_client;
         std::function<void(const std::string &)> m_msgCallBack;
 
     public:
-        ConnectionPool(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk);
+        ConnectionPool();
         ~ConnectionPool();
         std::shared_ptr<TcpClient> getConnection(const std::string &servicename);
         void checkClients();

@@ -56,7 +56,9 @@ void custom_zookeeper_log(const char *message)
     // 什么都不做，完全屏蔽日志
     // 或者只输出特定级别的日志
 }
-ZkClient::ZkClient(std::shared_ptr<ThreadPool> pool)
+
+miniRpc::ZkClient::ZkClient(ThreadPool* pool, const std::string& ip, int16_t port)
+    :m_ip(ip),m_port(port)
 {
     m_pool = pool;
     zoo_set_debug_level(ZOO_LOG_LEVEL_ERROR);
@@ -80,10 +82,12 @@ void ZkClient::reConnect()
     {
         zookeeper_close(m_handle);
         m_handle = nullptr;
+        std::cout << "设置为空" << std::endl;
     }
-    std::string host = "192.168.105.2";
-    std::string port = "2181";
-    std::string hostaddr = host + ":" + port;
+    // std::string host = "192.168.105.2";
+    // std::string port = "2181";
+    std::string hostaddr = m_ip + ":" + std::to_string(m_port);
+    std::cout << hostaddr << std::endl;
     sem_init(&m_sem, 0, 0);
     m_handle = zookeeper_init(hostaddr.c_str(), watcher, 1000, 0, this, 0);
     zoo_set_log_callback(m_handle, custom_zookeeper_log);

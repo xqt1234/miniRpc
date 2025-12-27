@@ -13,16 +13,15 @@ namespace miniRpc
     {
     private:
         std::unordered_map<std::string, std::shared_ptr<RpcService>> m_serviceMap;
-        std::shared_ptr<ZkClient> m_zk;
-        std::shared_ptr<ThreadPool> m_pool;
+        // std::shared_ptr<ZkClient> m_zk;
+        // std::shared_ptr<ThreadPool> m_pool;
         std::string m_rootLoc;
         std::unique_ptr<mymuduo::EventLoop> m_loop;
         std::unique_ptr<mymuduo::TcpServer> m_server;
-        std::string m_ip;
-        int16_t m_port;
-
+        std::string m_rpcIp;
+        int16_t m_rpcPort;
     public:
-        ProVider(std::string ip, int16_t port);
+        ProVider();
         ~ProVider();
         void start();
         void AddService(std::shared_ptr<RpcService> service);
