@@ -7,7 +7,7 @@ void handRequest(const std::string& response)
 }
 int main()
 {
-    RpcChannel channl;
+    miniRpc::RpcChannel channl;
     std::string request = "hello world";
     std::this_thread::sleep_for(std::chrono::seconds(1));
     channl.callMethodAsync("UserService2","aaa",request,handRequest);

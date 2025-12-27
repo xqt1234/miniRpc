@@ -7,6 +7,7 @@
 #include <string_view>
 #include <functional>
 using namespace mymuduo;
+using namespace miniRpc;
 ConnectionPool::ConnectionPool(std::shared_ptr<ThreadPool> pool, std::shared_ptr<ZkClient> zk)
     : m_pool(pool), m_zk(zk), m_loop(std::make_unique<EventLoop>())
     ,m_client(nullptr)

@@ -2,9 +2,10 @@
 #include "EventLoop.h"
 #include "Logger.h"
 using namespace mymuduo;
-
-ProVider::ProVider()
-    : m_pool(nullptr), m_zk(nullptr)
+using namespace miniRpc;
+ProVider::ProVider(std::string ip, int16_t port)
+    :m_pool(nullptr), m_zk(nullptr)
+    ,m_ip(ip),m_port(port)
 {
     start();
 }
@@ -30,7 +31,7 @@ void ProVider::start()
         LOG_FATAL("zk根路径创建失败");
     }
     m_loop = std::make_unique<EventLoop>();
-    m_server = std::make_unique<TcpServer>(m_loop.get(), 10002, "192.168.105.2");
+    m_server = std::make_unique<TcpServer>(m_loop.get(), m_port, m_ip);
     m_server->setThreadNum(3);
     m_server->setMessageCallBack(std::bind(&ProVider::onMessage, this, std::placeholders::_1, std::placeholders::_2));
     m_server->setConnectionCallBack(std::bind(&ProVider::onConnection, this, std::placeholders::_1));

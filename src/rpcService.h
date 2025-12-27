@@ -4,22 +4,26 @@
 #include <unordered_map>
 #include "zkclient.h"
 #include "threadpool.h"
-using RpcMethod = std::function<void(const std::string request,const std::string& response)>;
-using RpcAsyncMethod = std::function<void(const std::string& request, std::function<void(std::string& response)> callback)>;
-class RpcService
+using RpcMethod = std::function<void(const std::string request, const std::string &response)>;
+using RpcAsyncMethod = std::function<void(const std::string &request, std::function<void(std::string &response)> callback)>;
+namespace miniRpc
 {
-private:
-    std::string m_name;
-    std::unordered_map<std::string,RpcMethod> m_methodMap;
-    std::unordered_map<std::string,RpcAsyncMethod> m_ansyncMethodMap;
-    friend class ProVider;
-public:
-    RpcService();
-    ~RpcService() = default;
-    const std::string& getname()const;
-    void setServiceName(const std::string& name);
-    void addMethod(std::string& name,RpcMethod method);
-    void addAsyncMethod(std::string& name,RpcAsyncMethod method);
-    bool CallMethod(std::string& methodname,const std::string& request,std::string& response);
-    bool CallAsyncMethod(const std::string& methodname,const std::string& request,std::function<void(std::string)> done);
-};
+    class RpcService
+    {
+    private:
+        std::string m_name;
+        std::unordered_map<std::string, RpcMethod> m_methodMap;
+        std::unordered_map<std::string, RpcAsyncMethod> m_ansyncMethodMap;
+        friend class ProVider;
+
+    public:
+        RpcService();
+        ~RpcService() = default;
+        const std::string &getname() const;
+        void setServiceName(const std::string &name);
+        void addMethod(std::string &name, RpcMethod method);
+        void addAsyncMethod(std::string &name, RpcAsyncMethod method);
+        bool CallMethod(std::string &methodname, const std::string &request, std::string &response);
+        bool CallAsyncMethod(const std::string &methodname, const std::string &request, std::function<void(std::string)> done);
+    };
+}

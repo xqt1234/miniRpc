@@ -6,6 +6,7 @@
 #include <semaphore>
 #include "Logger.h"
 using namespace mymuduo;
+using namespace miniRpc;
 void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx)
 {
     ZkClient *zk = (ZkClient *)(watcherCtx);

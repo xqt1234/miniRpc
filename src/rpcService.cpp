@@ -1,5 +1,5 @@
 #include "rpcService.h"
-
+using namespace miniRpc;
 RpcService::RpcService()
 {
     

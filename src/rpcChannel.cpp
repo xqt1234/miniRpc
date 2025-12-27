@@ -1,7 +1,7 @@
 #include "rpcChannel.h"
 #include "connectionPool.h"
 #include "TcpClient.h"
-
+using namespace miniRpc;
 RpcChannel::RpcChannel()
 {
     m_requestMap.clear();

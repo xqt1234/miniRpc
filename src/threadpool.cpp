@@ -1,5 +1,5 @@
 #include "threadpool.h"
-
+using namespace miniRpc;
 ThreadPool::ThreadPool(int baseThreadNum, int maxThreadNum, int maxTaskNum)
     : m_baseThreadNum(baseThreadNum), m_maxThreadNum(maxThreadNum), m_maxTaskNum(maxTaskNum), m_idleThreadNum(m_baseThreadNum)
 {
