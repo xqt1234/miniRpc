@@ -203,6 +203,7 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
                 if((*it)->connection() == conn)
                 {
                     vec.erase(it);
+                    break;
                 }
             }
         }

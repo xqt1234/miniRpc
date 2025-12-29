@@ -8,11 +8,13 @@
 #include <unordered_map>
 #include <functional>
 #include <atomic>
+#include "public.h"
 namespace miniRpc
 {
     class RpcChannel
     {
     public:
+        
     private:
         std::shared_ptr<ConnectionPool> m_connPool;
         std::unordered_map<int, std::function<void(std::string)>> m_requestMap;

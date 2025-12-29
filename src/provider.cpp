@@ -2,13 +2,18 @@
 #include "EventLoop.h"
 #include "Logger.h"
 #include "rpcApplication.h"
+#include <string.h>
+#include "json.hpp"
+#include "public.h"
 using namespace mymuduo;
 using namespace miniRpc;
+using json = nlohmann::json;
 miniRpc::ProVider::ProVider()
 {
-    RpcConfig& conf = RpcApplication::getRpcConfig();
-    m_rpcIp = RpcApplication::getRpcConfig().getValue("rpcserverip");
-    m_rpcPort = atoi(RpcApplication::getRpcConfig().getValue("rpcserverport").c_str());
+    RpcConfig &conf = RpcApplication::getRpcConfig();
+    m_rpcIp = conf.getValue("rpcserverip");
+    m_rpcPort = atoi(conf.getValue("rpcserverport").c_str());
+    std::cout << "rpcip:" << m_rpcIp << " port:" << m_rpcPort << std::endl;
     start();
 }
 
@@ -35,7 +40,7 @@ void ProVider::start()
     m_server->setConnectionCallBack(std::bind(&ProVider::onConnection, this, std::placeholders::_1));
     m_server->start();
     RpcApplication::getThreadPool().addTask([&]
-                    { m_loop->loop(); });
+                                            { m_loop->loop(); });
 }
 
 void ProVider::AddService(std::shared_ptr<RpcService> service)
@@ -43,7 +48,7 @@ void ProVider::AddService(std::shared_ptr<RpcService> service)
     m_serviceMap[service->m_name] = service;
     std::cout << "----节点名称:" << service->m_name << std::endl;
     std::string loc = m_rootLoc + "/" + service->m_name;
-    ZkClient& zk = RpcApplication::getZkClient();
+    ZkClient &zk = RpcApplication::getZkClient();
     bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
     std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
     std::string host = loc + "/" + ip;
@@ -65,9 +70,56 @@ void ProVider::AddService(std::shared_ptr<RpcService> service)
 
 void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
-    std::string msg = buffer->readAllAsString();
-    std::cout <<"收到消息:" << msg << std::endl;
-    conn->send(msg);
+    std::cout << "onmessage收到消息,准备解析" << std::endl;
+    const char *data = buffer->peek();
+    int len = buffer->readableBytes();
+    std::cout << "收到长度" << len << std::endl;
+    while (len > sizeof(RpcMsgHeader))
+    {
+        const RpcMsgHeader* rpchead = reinterpret_cast<const RpcMsgHeader*>(buffer->peek());
+        uint32_t magic = ntohl(rpchead->magic);
+        if (kMagicNumber != magic)
+        {
+            buffer->retrieve(1);
+            len = buffer->readableBytes();
+            data = buffer->peek();
+            continue;
+        }
+        uint32_t datalen = ntohl(rpchead->datalength);
+        uint64_t requId = be64toh(rpchead->reqId);
+        if (len < sizeof(RpcMsgHeader) + datalen)
+        {
+            break;
+        }
+        buffer->retrieve(sizeof(RpcMsgHeader));
+        std::string msg = buffer->readAsString(datalen);
+        data = buffer->peek();
+        len = buffer->readableBytes();
+        processReq(conn, msg);
+    }
+}
+void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req)
+{
+    std::cout << "收到消息:" << req << std::endl;
+    if(req.size() == 0)
+    {
+        return;
+    }
+    json js = json::parse(req);
+    if(!js.contains("service") || !js.contains("method") || !js.contains("data"))
+    {
+        return;
+    }
+    std::string sevicename = js["service"];
+    std::string methodname = js["method"];
+    std::string reqData = js["data"];
+    auto it = m_serviceMap.find(sevicename);
+    if (it == m_serviceMap.end())
+    {
+        return;
+    }
+    auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response)
+                                              { conn->send(response); });
 }
 
 void ProVider::onConnection(const TcpConnectionPtr &conn)

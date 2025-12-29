@@ -5,6 +5,12 @@ RpcService::RpcService()
     
 }
 
+RpcService::~RpcService()
+{
+    m_ansyncMethodMap.clear();
+    m_methodMap.clear();
+}
+
 const std::string &RpcService::getname() const
 {
     return m_name;
@@ -15,17 +21,17 @@ void RpcService::setServiceName(const std::string &name)
     m_name = name;
 }
 
-void RpcService::addMethod(std::string &name, RpcMethod method)
+void RpcService::addMethod(const std::string &name, RpcMethod method)
 {
     m_methodMap[name] = std::move(method);
 }
 
-void RpcService::addAsyncMethod(std::string &name, RpcAsyncMethod method)
+void RpcService::addAsyncMethod(const std::string &name, RpcAsyncMethod method)
 {
     m_ansyncMethodMap[name] = std::move(method);
 }
 
-bool RpcService::CallMethod(std::string &methodname, const std::string &request, std::string &response)
+bool RpcService::CallMethod(const std::string &methodname, const std::string &request, std::string &response)
 {
     auto it = m_methodMap.find(methodname);
     if (it != m_methodMap.end())

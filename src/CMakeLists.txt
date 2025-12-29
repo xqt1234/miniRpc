@@ -26,4 +26,4 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 #add_executable(${PROJECT_NAME} ${SRC_LIST} ${SRC_LIST_ZK})
 #link_directories(${PROJECT_SOURCE_DIR}/../lib)
-target_link_libraries(${PROJECT_NAME} zookeeper_mt newmuduo)
+target_link_libraries(${PROJECT_NAME} zookeeper_mt newmuduo nlohmann)

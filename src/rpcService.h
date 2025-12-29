@@ -18,12 +18,12 @@ namespace miniRpc
 
     public:
         RpcService();
-        ~RpcService() = default;
+        ~RpcService();
         const std::string &getname() const;
         void setServiceName(const std::string &name);
-        void addMethod(std::string &name, RpcMethod method);
-        void addAsyncMethod(std::string &name, RpcAsyncMethod method);
-        bool CallMethod(std::string &methodname, const std::string &request, std::string &response);
+        void addMethod(const std::string &name, RpcMethod method);
+        void addAsyncMethod(const std::string &name, RpcAsyncMethod method);
+        bool CallMethod(const std::string &methodname, const std::string &request, std::string &response);
         bool CallAsyncMethod(const std::string &methodname, const std::string &request, std::function<void(std::string)> done);
     };
 }

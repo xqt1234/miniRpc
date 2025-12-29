@@ -29,5 +29,7 @@ namespace miniRpc
         // ThreadPool m_threadPool;
         void onMessage(const mymuduo::TcpConnectionPtr &conn, mymuduo::Buffer *buffer);
         void onConnection(const mymuduo::TcpConnectionPtr &conn);
+    private:
+        void processReq(const mymuduo::TcpConnectionPtr &conn,const std::string& req);
     };
 }
