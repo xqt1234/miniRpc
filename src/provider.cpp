@@ -5,6 +5,7 @@
 #include <string.h>
 #include "json.hpp"
 #include "public.h"
+#include "buildproto.h"
 using namespace mymuduo;
 using namespace miniRpc;
 using json = nlohmann::json;
@@ -19,6 +20,7 @@ miniRpc::ProVider::ProVider()
 
 ProVider::~ProVider()
 {
+    m_serviceMap.clear();
     if (m_loop)
     {
         m_loop->quit();
@@ -74,31 +76,11 @@ void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
     const char *data = buffer->peek();
     int len = buffer->readableBytes();
     std::cout << "收到长度" << len << std::endl;
-    while (len > sizeof(RpcMsgHeader))
-    {
-        const RpcMsgHeader* rpchead = reinterpret_cast<const RpcMsgHeader*>(buffer->peek());
-        uint32_t magic = ntohl(rpchead->magic);
-        if (kMagicNumber != magic)
-        {
-            buffer->retrieve(1);
-            len = buffer->readableBytes();
-            data = buffer->peek();
-            continue;
-        }
-        uint32_t datalen = ntohl(rpchead->datalength);
-        uint64_t requId = be64toh(rpchead->reqId);
-        if (len < sizeof(RpcMsgHeader) + datalen)
-        {
-            break;
-        }
-        buffer->retrieve(sizeof(RpcMsgHeader));
-        std::string msg = buffer->readAsString(datalen);
-        data = buffer->peek();
-        len = buffer->readableBytes();
-        processReq(conn, msg);
-    }
+    BuildProto::deCodeResponse(buffer,[&](const std::string &request,int64_t requestId){
+        this->processReq(conn, request, requestId);
+    });
 }
-void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req)
+void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req,int64_t requestId)
 {
     std::cout << "收到消息:" << req << std::endl;
     if(req.size() == 0)
@@ -118,8 +100,12 @@ void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::stri
     {
         return;
     }
-    auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response)
-                                              { conn->send(response); });
+    auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response){ 
+            BuildProto::enCodeRequest(response,requestId,[&](std::string str){
+                conn->send(str); 
+            });
+            
+    });
 }
 
 void ProVider::onConnection(const TcpConnectionPtr &conn)
@@ -134,20 +120,3 @@ void ProVider::onConnection(const TcpConnectionPtr &conn)
         std::cout << "有客户端连接" << std::endl;
     }
 }
-
-// bool ProVider::callAsyncServiceMethod(const std::string &servicename,const std::string &methodname,const std::string &request, std::function<void(std::string)> func)
-// {
-//     auto it = m_serviceMap.find(servicename);
-//     if (it == m_serviceMap.end())
-//     {
-//         return false;
-//     }
-//     it->second->CallAsyncMethod(methodname, request, func);
-//     // std::shared_ptr<RpcService> service = it->second;
-
-//     // //m_threadPool.addTask(it->second->CallAsyncMethod(methodname, request, func));
-//     // m_threadPool.addTask([service,methodname,request,func]{
-//     //     service->CallAsyncMethod(methodname,request,func);
-//     // });
-//     return true;
-// }

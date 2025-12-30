@@ -22,7 +22,7 @@ namespace miniRpc
         std::thread m_thread;
         std::atomic<bool> m_stop{false};
         TcpClient *m_client;
-        std::function<void(const std::string &)> m_msgCallBack;
+        std::function<void(mymuduo::Buffer *)> m_msgCallBack;
 
     public:
         ConnectionPool();
@@ -30,7 +30,7 @@ namespace miniRpc
         std::shared_ptr<TcpClient> getConnection(const std::string &servicename);
         void checkClients();
         void updateClients(const std::string &path);
-        void setMessageCallBack(std::function<void(const std::string &)> cb);
+        void setMessageCallBack(std::function<void(mymuduo::Buffer*)> cb);
 
     private:
         void startLoop();

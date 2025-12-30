@@ -30,6 +30,6 @@ namespace miniRpc
         void onMessage(const mymuduo::TcpConnectionPtr &conn, mymuduo::Buffer *buffer);
         void onConnection(const mymuduo::TcpConnectionPtr &conn);
     private:
-        void processReq(const mymuduo::TcpConnectionPtr &conn,const std::string& req);
+        void processReq(const mymuduo::TcpConnectionPtr &conn,const std::string& req,int64_t requestId);
     };
 }

@@ -57,6 +57,7 @@ ConnectionPool::~ConnectionPool()
 }
 std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &servicename)
 {
+    
     for(auto& val : m_activeClientMap)
     {
         std::cout << "当前有服务:" << val.first << std::endl;
@@ -68,8 +69,7 @@ std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &serv
         {
             int current = m_currentUse[servicename]++;
             int count = it->second.size();
-            std::shared_ptr<TcpClient> res = it->second[current & count];
-            count++;
+            //std::shared_ptr<TcpClient> res = it->second[current];
             return it->second[current % count];
         }
     }
@@ -109,7 +109,7 @@ void ConnectionPool::updateClients(const std::string &path)
     }
 }
 
-void ConnectionPool::setMessageCallBack(std::function<void(const std::string&)> cb)
+void ConnectionPool::setMessageCallBack(std::function<void(mymuduo::Buffer *)> cb)
 {
     m_msgCallBack = cb;
 }
@@ -213,10 +213,10 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
 
 void ConnectionPool::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
-    std::string msg = buffer->readAllAsString();
+    // std::string msg = buffer->readAllAsString();
     if(m_msgCallBack)
     {
-        m_msgCallBack(msg);
+        m_msgCallBack(buffer);
     }
     // conn->send(msg);
 }

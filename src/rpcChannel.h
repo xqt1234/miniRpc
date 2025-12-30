@@ -18,13 +18,13 @@ namespace miniRpc
     private:
         std::shared_ptr<ConnectionPool> m_connPool;
         std::unordered_map<int, std::function<void(std::string)>> m_requestMap;
-        std::atomic<int64_t> m_requestId{0};
+        
     public:
         RpcChannel();
-        ~RpcChannel() = default;
+        ~RpcChannel();
         void callMethodAsync(const std::string &serviceName,
                              const std::string &methodName, const std::string &request,
                              std::function<void(std::string)>);
-        void getResponse(const std::string &response);
+        void getResponse(Buffer* buff);
     };
 }
