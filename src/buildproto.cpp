@@ -8,9 +8,6 @@
 using namespace miniRpc;
 void BuildProto::enCodeRequest(const std::string &request,int64_t requestId,std::function<void(const std::string&)> callback)
 {
-    // std::string sendstr = resjs.dump();
-    // 总长度 魔数+ 数据长度 + 消息id
-    // 
     int len = sizeof(int32_t) + sizeof(int32_t) + sizeof(int64_t) + request.length();
     int totallen = sizeof(RpcMsgHeader) + request.length();
     std::vector<char> sendvec(totallen);
@@ -24,10 +21,8 @@ void BuildProto::enCodeRequest(const std::string &request,int64_t requestId,std:
 
 void BuildProto::deCodeResponse(mymuduo::Buffer *buffer, std::function<void(const std::string &,int64_t)> callback)
 {
-    std::cout << "收到回复" << std::endl;
     const char *data = buffer->peek();
     int len = buffer->readableBytes();
-    std::cout << "收到长度" << len << std::endl;
     while (len > sizeof(RpcMsgHeader))
     {
         RpcMsgHeader rpchead;

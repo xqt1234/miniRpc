@@ -41,8 +41,8 @@ void RpcChannel::callMethodAsync(const std::string &serviceName,
         TcpConnectionPtr conn = client->connection();
         if(conn && conn->isConnected())
         {
-            conn->send(req);
-            std::cout << "发送成功" << req.size() << std::endl;
+            conn->sendWithoutProto(req);
+            // std::cout << "发送成功" << req.size() << std::endl;
             m_requestMap.emplace(requestId,func);
         }
     });
@@ -51,7 +51,7 @@ void RpcChannel::callMethodAsync(const std::string &serviceName,
 void RpcChannel::getResponse(Buffer* buffer)
 {
     BuildProto::deCodeResponse(buffer,[&](const std::string& response,int64_t requestId){
-        std::cout << "收到回复---" << response << std::endl;
+        // std::cout << "收到回复---" << response << std::endl;
         auto it = m_requestMap.find(requestId);
         if(it != m_requestMap.end())
         {

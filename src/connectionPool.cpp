@@ -26,26 +26,17 @@ ConnectionPool::ConnectionPool()
 ConnectionPool::~ConnectionPool()
 {
     m_stop = true;
-    // if(m_client)
-    // {
-    //     m_client->disconnect();
-    //     delete m_client;
-    // }
-    std::cout << "当前有连接个数" << m_activeClientMap.size() << std::endl;
     for(auto& val : m_allClientMap)
     {
-        std::cout << val.first << std::endl;
+        std::cout <<"----" << val.first << std::endl;
         for(auto& conn:val.second)
         {
-            // std::cout << conn->name() << std::endl;
             std::cout << "断开连接" << std::endl;
             conn->disconnect();
-            //delete conn;
         }
     }
     m_activeClientMap.clear();
     m_allClientMap.clear();
-    //m_AllclientMap.clear();
     if (m_loop != nullptr)
     {
         m_loop->quit();
@@ -57,10 +48,10 @@ ConnectionPool::~ConnectionPool()
 }
 std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &servicename)
 {
-    
+    std::cout << "服务数量：" << m_activeClientMap.size() << std::endl;
     for(auto& val : m_activeClientMap)
     {
-        std::cout << "当前有服务:" << val.first << std::endl;
+        std::cout << "当前有服务:" << val.first  << "------" << std::endl;
     }
     auto it = m_activeClientMap.find(servicename);
     if (it != m_activeClientMap.end())
@@ -78,10 +69,9 @@ std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &serv
 
 void ConnectionPool::checkClients()
 {
-    std::cout << "打印客户端" << std::endl;
     for (auto &val : m_activeClientMap)
     {
-        std::cout << val.first << std::endl;
+        std::cout<< "+++++++++" << val.first << std::endl;
     }
 }
 void ConnectionPool::updateClients(const std::string &path)
@@ -92,10 +82,6 @@ void ConnectionPool::updateClients(const std::string &path)
     {
         nodes.emplace_back(range.begin(), range.end());
     }
-    for (auto &val : nodes)
-    {
-        std::cout << "节点：：：：" << val << std::endl;
-    }
     if (nodes.size() == 2 && nodes[1] == "services")
     {
         // 查找服务
@@ -104,7 +90,6 @@ void ConnectionPool::updateClients(const std::string &path)
     else if (nodes.size() == 3)
     {
         // 根据服务名，更新客户端列表，这里是服务名称
-        std::cout <<"nodes[2]:" << nodes[2] << std::endl;
         updateClient(nodes[2]);
     }
 }
@@ -125,11 +110,8 @@ void ConnectionPool::updateClient(std::string servicename)
     std::vector<std::shared_ptr<TcpClient>> &clients = m_allClientMap[servicename];
     std::string path = "/services/" + servicename;
     std::vector<std::string> res = m_zk->getNodeChildren(path);
-    // std::vector<std::shared_ptr<mymuduo::TcpClient>> &tmpclients = m_clientMap[servicename];
-    std::cout << "打印服务全称" << path << std::endl;
     for (auto &val : res)
     {
-        std::cout << "获取子节点为:" << val << std::endl;
         std::string clientname = servicename + val;
         bool hasClient = false;
         for (auto &p : clients)
@@ -143,7 +125,6 @@ void ConnectionPool::updateClient(std::string servicename)
         // 不存在，创建tcpclient
         if (!hasClient)
         {
-            std::cout << "准备创建节点:" << val << clientname << servicename << std::endl;
             createTcpClient(val, clientname, servicename);
         }
     }
@@ -173,7 +154,7 @@ void ConnectionPool::createTcpClient(const std::string &ipPort, const std::strin
 
 void ConnectionPool::sendHeart()
 {
-    std::cout << "sendHeart被调用" << std::endl;
+    // std::cout << "sendHeart被调用" << std::endl;
 }
 
 void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
@@ -182,18 +163,15 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
     {
         for(auto& [servicename,vec] : m_allClientMap)
         {
-            std::cout << "服务名---" << servicename << std::endl;
             for(auto& client: vec)
             {
                 if(client->connection() == conn)
                 {
-                    std::cout << "找到相同的了" << std::endl;
                     m_activeClientMap[servicename].push_back(client);
                 }
             }
         }
 
-        std::cout << "tcpclient建立了连接" << std::endl;
     }else
     {
         for(auto& [servicename,vec] : m_activeClientMap)
@@ -207,7 +185,6 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
                 }
             }
         }
-        std::cout << "tcpclient断开了连接" << std::endl;
     }
 }
 

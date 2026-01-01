@@ -17,39 +17,34 @@ void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcher
         {
             
             sem_post(&zk->m_sem);
-            std::cout << "11111" << std::endl;
         }
         else if (state == ZOO_EXPIRED_SESSION_STATE)
         {
             zk->start();
-            std::cout << "2222" << std::endl;
         }
         else if (state == ZOO_CONNECTING_STATE)
         {
-            std::cout << "33333" << std::endl;
         }
     }else if (type == ZOO_CHILD_EVENT)  // 子节点变化事件
     {
-        std::cout << "------子节点变化: " << path << std::endl;
         zk->updateNode(path);
     }
-    else if (type == ZOO_CHANGED_EVENT)  // 节点数据变化事件
-    {
-        std::cout << "--------节点数据变化: " << path << std::endl;
-    }
-    else if (type == ZOO_CREATED_EVENT)  // 节点创建事件
-    {
-        std::cout << "--------节点创建: " << path << std::endl;
-    }
-    else if (type == ZOO_DELETED_EVENT)  // 节点删除事件
-    {
-        std::cout << "--------节点删除: " << path << std::endl;
-    }
-    else if (type == ZOO_NOTWATCHING_EVENT)  // watcher被移除事件
-    {
-        std::cout << "---------watcher被移除: " << path << std::endl;
-    }
-    std::cout << "watcher 被调用 " << std::endl;
+    // else if (type == ZOO_CHANGED_EVENT)  // 节点数据变化事件
+    // {
+    //     std::cout << "--------节点数据变化: " << path << std::endl;
+    // }
+    // else if (type == ZOO_CREATED_EVENT)  // 节点创建事件
+    // {
+    //     std::cout << "--------节点创建: " << path << std::endl;
+    // }
+    // else if (type == ZOO_DELETED_EVENT)  // 节点删除事件
+    // {
+    //     std::cout << "--------节点删除: " << path << std::endl;
+    // }
+    // else if (type == ZOO_NOTWATCHING_EVENT)  // watcher被移除事件
+    // {
+    //     std::cout << "---------watcher被移除: " << path << std::endl;
+    // }
 }
 void custom_zookeeper_log(const char *message)
 {
@@ -98,7 +93,6 @@ void ZkClient::reConnect()
     }
     waitForConnection();
     m_connected = true;
-    std::cout << "线程号是" << std::this_thread::get_id() << std::endl;
 }
 struct CallbackContext
 {
@@ -220,14 +214,12 @@ bool ZkClient::createNode(std::string path, std::string value,int mode)
     {
         if (exist_ctx.rc == ZOK)
         {
-            std::cout << "节点已存在" << std::endl;
             return true;
         }
         else
         {
             std::cout << "你没有权限查看" << std::endl;
         }
-        std::cout << "---------" << std::endl;
         return false;
     }
     //ZOO_EPHEMERAL
@@ -236,8 +228,6 @@ bool ZkClient::createNode(std::string path, std::string value,int mode)
     {
         return false;
     }
-    std::cout << "怎么回事" << std::endl;
-    std::cout << create_ctx.rc << std::endl;
     if (create_ctx.rc == ZOK)
     {
         std::cout << "创建节点成功:" << path << std::endl;
@@ -261,27 +251,7 @@ void node_data_completion_t(int rc, const char *value, int value_len,
     }
     sem_post(&ctx->sem);
 }
-// bool ZkClient::getNode(const std::string &path, std::string &value)
-// {
-//     if (m_handle == nullptr || m_connected == false)
-//     {
-//         std::cout << "已经离线，等待连接" << std::endl;
-//         return false;
-//     }
-//     struct CallbackContext ctx;
-//     zoo_aget(m_handle, path.c_str(), 0, node_data_completion_t, &ctx);
-//     if (!waitForAdd(ctx))
-//     {
-//         std::cout << "获取失败" << std::endl;
-//         return false;
-//     }
-//     if (ctx.rc != ZOK)
-//     {
-//         return false;
-//     }
-//     value = ctx.value;
-//     return true;
-// }
+
 struct GetChildrenCallbackContext
 {
     sem_t sem;

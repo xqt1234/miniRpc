@@ -14,7 +14,7 @@ miniRpc::ProVider::ProVider()
     RpcConfig &conf = RpcApplication::getRpcConfig();
     m_rpcIp = conf.getValue("rpcserverip");
     m_rpcPort = atoi(conf.getValue("rpcserverport").c_str());
-    std::cout << "rpcip:" << m_rpcIp << " port:" << m_rpcPort << std::endl;
+    // std::cout << "rpcip:" << m_rpcIp << " port:" << m_rpcPort << std::endl;
     start();
 }
 
@@ -48,7 +48,6 @@ void ProVider::start()
 void ProVider::AddService(std::shared_ptr<RpcService> service)
 {
     m_serviceMap[service->m_name] = service;
-    std::cout << "----节点名称:" << service->m_name << std::endl;
     std::string loc = m_rootLoc + "/" + service->m_name;
     ZkClient &zk = RpcApplication::getZkClient();
     bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
@@ -57,7 +56,6 @@ void ProVider::AddService(std::shared_ptr<RpcService> service)
     if (res)
     {
         std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
-        std::cout << "节点个数为:" << nodes.size() << std::endl;
         res = zk.createNode(host, "", ZOO_EPHEMERAL);
         if (!res)
         {
@@ -72,17 +70,15 @@ void ProVider::AddService(std::shared_ptr<RpcService> service)
 
 void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
-    std::cout << "onmessage收到消息,准备解析" << std::endl;
     const char *data = buffer->peek();
     int len = buffer->readableBytes();
-    std::cout << "收到长度" << len << std::endl;
+    // std::cout << "收到长度" << len << std::endl;
     BuildProto::deCodeResponse(buffer,[&](const std::string &request,int64_t requestId){
         this->processReq(conn, request, requestId);
     });
 }
 void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req,int64_t requestId)
 {
-    std::cout << "收到消息:" << req << std::endl;
     if(req.size() == 0)
     {
         return;
@@ -102,7 +98,7 @@ void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::stri
     }
     auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response){ 
             BuildProto::enCodeRequest(response,requestId,[&](std::string str){
-                conn->send(str); 
+                conn->sendWithoutProto(str);
             });
             
     });
