@@ -8,6 +8,8 @@
 #include <vector>
 #include "TcpConnection.h"
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 using namespace mymuduo;
 namespace miniRpc
 {
@@ -17,9 +19,13 @@ namespace miniRpc
         std::unordered_map<std::string, std::vector<std::shared_ptr<TcpClient>>> m_activeClientMap;
         std::unordered_map<std::string, std::vector<std::shared_ptr<TcpClient>>> m_allClientMap;
         std::unordered_map<std::string, int> m_currentUse;
+        std::mutex m_clientMtx;
         ThreadPool* m_pool;
         ZkClient* m_zk;
         std::thread m_thread;
+        std::thread m_heartThread;
+        std::condition_variable m_hearCv;
+        std::mutex m_heartMtx;
         std::atomic<bool> m_stop{false};
         TcpClient *m_client;
         std::function<void(mymuduo::Buffer *)> m_msgCallBack;

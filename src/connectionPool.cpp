@@ -7,17 +7,18 @@
 #include <string_view>
 #include <functional>
 #include <rpcApplication.h>
+#include "Logger.h"
 using namespace mymuduo;
 using namespace miniRpc;
 ConnectionPool::ConnectionPool()
-    : m_loop(std::make_unique<EventLoop>())
-    ,m_client(nullptr)
+    : m_loop(std::make_unique<EventLoop>()), m_client(nullptr)
 {
     m_activeClientMap.clear();
     m_allClientMap.clear();
     m_zk = &RpcApplication::getZkClient();
     m_pool = &RpcApplication::getThreadPool();
     m_thread = std::thread(&ConnectionPool::startLoop, this);
+    m_heartThread = std::thread(&ConnectionPool::sendHeart, this);
     m_zk->setNodeUpdateCallBack(std::bind(&ConnectionPool::updateClients, this, std::placeholders::_1));
     m_zk->setWatch("/services");
     updateClients("/services");
@@ -26,17 +27,20 @@ ConnectionPool::ConnectionPool()
 ConnectionPool::~ConnectionPool()
 {
     m_stop = true;
-    for(auto& val : m_allClientMap)
     {
-        std::cout <<"----" << val.first << std::endl;
-        for(auto& conn:val.second)
+        std::lock_guard<std::mutex> lock(m_clientMtx);
+        for (auto &val : m_allClientMap)
         {
-            std::cout << "断开连接" << std::endl;
-            conn->disconnect();
+            std::cout << "----" << val.first << std::endl;
+            for (auto &conn : val.second)
+            {
+                std::cout << "断开连接" << std::endl;
+                conn->disconnect();
+            }
         }
+        m_activeClientMap.clear();
+        m_allClientMap.clear();
     }
-    m_activeClientMap.clear();
-    m_allClientMap.clear();
     if (m_loop != nullptr)
     {
         m_loop->quit();
@@ -48,10 +52,9 @@ ConnectionPool::~ConnectionPool()
 }
 std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &servicename)
 {
-    std::cout << "服务数量：" << m_activeClientMap.size() << std::endl;
-    for(auto& val : m_activeClientMap)
+    for (auto &val : m_activeClientMap)
     {
-        std::cout << "当前有服务:" << val.first  << "------" << std::endl;
+        LOG_DEBUG("当前有服务:{}", val.first);
     }
     auto it = m_activeClientMap.find(servicename);
     if (it != m_activeClientMap.end())
@@ -60,7 +63,7 @@ std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &serv
         {
             int current = m_currentUse[servicename]++;
             int count = it->second.size();
-            //std::shared_ptr<TcpClient> res = it->second[current];
+            // std::shared_ptr<TcpClient> res = it->second[current];
             return it->second[current % count];
         }
     }
@@ -71,11 +74,12 @@ void ConnectionPool::checkClients()
 {
     for (auto &val : m_activeClientMap)
     {
-        std::cout<< "+++++++++" << val.first << std::endl;
+        std::cout << "+++++++++" << val.first << std::endl;
     }
 }
 void ConnectionPool::updateClients(const std::string &path)
 {
+    std::cout << "更新节点：" << path << std::endl;
     auto parts = path | std::ranges::views::split('/');
     std::vector<std::string> nodes;
     for (auto range : parts)
@@ -118,6 +122,10 @@ void ConnectionPool::updateClient(std::string servicename)
         {
             if (p->name() == clientname)
             {
+                if(!p->isConnected())
+                {
+                    p->connect();
+                }
                 hasClient = true;
                 break;
             }
@@ -131,54 +139,74 @@ void ConnectionPool::updateClient(std::string servicename)
 }
 void ConnectionPool::createTcpClient(const std::string &ipPort, const std::string &clientName, const std::string &servicename)
 {
-    std::vector<std::shared_ptr<TcpClient>> &tvec = m_allClientMap[servicename];
-    for(auto& val : tvec)
-    {
-        if(val->name() == clientName)
-        {
-            // 有正在重连的，等待重连即可。
-            return;
-        }
-    }
     int index = ipPort.find(":");
     std::string addr = ipPort.substr(0, index);
     int port = atoi(ipPort.substr(index + 1).c_str());
     InetAddress iaddr(port, addr);
-    std::cout << "ip地址是:" << iaddr.toIpPortString() << std::endl;
+    LOG_DEBUG("创建连接:{}", iaddr.toIpPortString());
     std::shared_ptr<TcpClient> client = std::make_shared<TcpClient>(m_loop.get(), iaddr, clientName);
-    client->setConnectionCallBack(std::bind(&ConnectionPool::newConnection,this,std::placeholders::_1));
-    client->setMessageCallBack(std::bind(&ConnectionPool::onMessage,this,std::placeholders::_1,std::placeholders::_2));
+    client->setConnectionCallBack(std::bind(&ConnectionPool::newConnection, this, std::placeholders::_1));
+    client->setMessageCallBack(std::bind(&ConnectionPool::onMessage, this, std::placeholders::_1, std::placeholders::_2));
     client->connect(true);
+    std::vector<std::shared_ptr<TcpClient>> &tvec = m_allClientMap[servicename];
+    std::lock_guard<std::mutex> lock(m_clientMtx);
     tvec.push_back(client);
 }
 
 void ConnectionPool::sendHeart()
 {
-    // std::cout << "sendHeart被调用" << std::endl;
+    while (!m_stop)
+    {
+        std::unique_lock<std::mutex> lock(m_heartMtx);
+        m_hearCv.wait_for(lock,std::chrono::seconds(5),[this](){
+            return m_stop.load();
+        });
+        if(m_stop)
+        {
+            break;
+        }
+        std::unordered_map<std::string, std::vector<std::shared_ptr<TcpClient>>> activeClientMap;
+        {
+            std::lock_guard<std::mutex> lock(m_clientMtx);
+            activeClientMap = m_activeClientMap;
+        }
+        for (auto it = activeClientMap.begin(); it != activeClientMap.end(); ++it)
+        {
+            for (int i = 0; i < it->second.size(); ++i)
+            {
+                if (it->second[i]->connection() && it->second[i]->connection()->isConnected())
+                {
+                    it->second[i]->connection()->send("");
+                }
+            }
+        }
+    }
 }
 
 void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
 {
-    if(conn->isConnected())
+    if (conn->isConnected())
     {
-        for(auto& [servicename,vec] : m_allClientMap)
+        std::lock_guard<std::mutex> lock(m_clientMtx);
+        for (auto &[servicename, vec] : m_allClientMap)
         {
-            for(auto& client: vec)
+            for (auto &client : vec)
             {
-                if(client->connection() == conn)
+                if (client->connection() == conn)
                 {
                     m_activeClientMap[servicename].push_back(client);
                 }
             }
         }
-
-    }else
+    }
+    else
     {
-        for(auto& [servicename,vec] : m_activeClientMap)
+        std::lock_guard<std::mutex> lock(m_clientMtx);
+        for (auto &[servicename, vec] : m_activeClientMap)
         {
-            for(auto it = vec.begin();it != vec.end();++it)
+            for (auto it = vec.begin(); it != vec.end(); ++it)
             {
-                if((*it)->connection() == conn)
+                if ((*it)->connection() == conn)
                 {
                     vec.erase(it);
                     break;
@@ -191,7 +219,7 @@ void ConnectionPool::newConnection(const TcpConnectionPtr &conn)
 void ConnectionPool::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
     // std::string msg = buffer->readAllAsString();
-    if(m_msgCallBack)
+    if (m_msgCallBack)
     {
         m_msgCallBack(buffer);
     }
@@ -201,7 +229,6 @@ void ConnectionPool::checkService()
 {
     std::string rootPath = "/services";
     std::vector<std::string> res = m_zk->getNodeChildren(rootPath);
-    std::cout << "打印服务名" << std::endl;
     for (auto &val : res)
     {
         std::cout << "checkService():" << val << std::endl;

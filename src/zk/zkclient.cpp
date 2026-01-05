@@ -10,7 +10,6 @@ using namespace miniRpc;
 void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx)
 {
     ZkClient *zk = (ZkClient *)(watcherCtx);
-    std::cout << "type:" << type << " state:" << state << std::endl;
     if (type == ZOO_SESSION_EVENT)
     {
         if (state == ZOO_CONNECTED_STATE)
@@ -27,6 +26,7 @@ void watcher(zhandle_t *zh, int type, int state, const char *path, void *watcher
         }
     }else if (type == ZOO_CHILD_EVENT)  // 子节点变化事件
     {
+        std::cout << path << std::endl;
         zk->updateNode(path);
     }
     // else if (type == ZOO_CHANGED_EVENT)  // 节点数据变化事件
