@@ -7,12 +7,15 @@
 #include "rpcService.h"
 #include "TcpServer.h"
 #include "TcpConnection.h"
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/service.h>
 namespace miniRpc
 {
     class ProVider
     {
     private:
-        std::unordered_map<std::string, std::shared_ptr<RpcService>> m_serviceMap;
+        
+        std::unordered_map<std::string, google::protobuf::Service*> m_serviceMap;
         // std::shared_ptr<ZkClient> m_zk;
         // std::shared_ptr<ThreadPool> m_pool;
         std::string m_rootLoc;

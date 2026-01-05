@@ -3,12 +3,10 @@
 #include "Logger.h"
 #include "rpcApplication.h"
 #include <string.h>
-#include "json.hpp"
 #include "public.h"
 #include "buildproto.h"
 using namespace mymuduo;
 using namespace miniRpc;
-using json = nlohmann::json;
 miniRpc::ProVider::ProVider()
 {
     RpcConfig &conf = RpcApplication::getRpcConfig();
@@ -47,31 +45,29 @@ void ProVider::start()
 
 void ProVider::AddService(std::shared_ptr<RpcService> service)
 {
-    m_serviceMap[service->m_name] = service;
-    std::string loc = m_rootLoc + "/" + service->m_name;
-    ZkClient &zk = RpcApplication::getZkClient();
-    bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
-    std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
-    std::string host = loc + "/" + ip;
-    if (res)
-    {
-        std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
-        res = zk.createNode(host, "", ZOO_EPHEMERAL);
-        if (!res)
-        {
-            std::cout << "创建节点失败" << std::endl;
-        }
-        else
-        {
-            std::cout << "创建节点成功" << host << std::endl;
-        }
-    }
+    // m_serviceMap[service->m_name] = service;
+    // std::string loc = m_rootLoc + "/" + service->m_name;
+    // ZkClient &zk = RpcApplication::getZkClient();
+    // bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
+    // std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
+    // std::string host = loc + "/" + ip;
+    // if (res)
+    // {
+    //     std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
+    //     res = zk.createNode(host, "", ZOO_EPHEMERAL);
+    //     if (!res)
+    //     {
+    //         std::cout << "创建节点失败" << std::endl;
+    //     }
+    //     else
+    //     {
+    //         std::cout << "创建节点成功" << host << std::endl;
+    //     }
+    // }
 }
 
 void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
-    const char *data = buffer->peek();
-    int len = buffer->readableBytes();
     // std::cout << "收到长度" << len << std::endl;
     BuildProto::deCodeResponse(buffer,[&](const std::string &request,int64_t requestId){
         this->processReq(conn, request, requestId);
@@ -79,29 +75,29 @@ void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 }
 void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req,int64_t requestId)
 {
-    if(req.size() == 0)
-    {
-        return;
-    }
-    json js = json::parse(req);
-    if(!js.contains("service") || !js.contains("method") || !js.contains("data"))
-    {
-        return;
-    }
-    std::string sevicename = js["service"];
-    std::string methodname = js["method"];
-    std::string reqData = js["data"];
-    auto it = m_serviceMap.find(sevicename);
-    if (it == m_serviceMap.end())
-    {
-        return;
-    }
-    auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response){ 
-            BuildProto::enCodeRequest(response,requestId,[&](std::string str){
-                conn->sendWithoutProto(str);
-            });
+    // if(req.size() == 0)
+    // {
+    //     return;
+    // }
+    // json js = json::parse(req);
+    // if(!js.contains("service") || !js.contains("method") || !js.contains("data"))
+    // {
+    //     return;
+    // }
+    // std::string sevicename = js["service"];
+    // std::string methodname = js["method"];
+    // std::string reqData = js["data"];
+    // auto it = m_serviceMap.find(sevicename);
+    // if (it == m_serviceMap.end())
+    // {
+    //     return;
+    // }
+    // auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response){ 
+    //         BuildProto::enCodeRequest(response,requestId,[&](std::string str){
+    //             conn->sendWithoutProto(str);
+    //         });
             
-    });
+    // });
 }
 
 void ProVider::onConnection(const TcpConnectionPtr &conn)
