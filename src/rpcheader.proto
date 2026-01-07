@@ -1,9 +1,9 @@
-edition = "2023"
+syntax = "proto3";
 
 package miniRpc;
 
 message RpcHeader{
     string servicename = 1;
     string methodname = 2;
-    int32 size = 3;
+    string reqdata = 3;
 }

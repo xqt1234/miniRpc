@@ -11,6 +11,11 @@ RpcService::~RpcService()
     m_methodMap.clear();
 }
 
+const google::protobuf::ServiceDescriptor *miniRpc::RpcService::GetDescriptor()
+{
+    return m_descriptor;
+}
+
 const std::string &RpcService::getname() const
 {
     return m_name;

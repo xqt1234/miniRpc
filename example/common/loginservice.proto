@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package miniRpc;
+option cc_generic_services = true;
+service MyRpcService {
+  rpc SayHello (HelloRequest) returns (HelloResponse);
+  rpc GetData (DataRequest) returns (DataResponse);
+}
+
+message HelloRequest {
+  string name = 1;
+}
+
+message HelloResponse {
+  string message = 1;
+}
+
+message DataRequest {
+  int32 id = 1;
+}
+
+message DataResponse {
+  string data = 1;
+}

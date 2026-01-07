@@ -5,12 +5,13 @@
 #include <vector>
 #include <string.h>
 #include "buildproto.h"
+#include "rpcheader.pb.h"
 using namespace miniRpc;
 RpcChannel::RpcChannel()
 {
     m_requestMap.clear();
     m_connPool = std::make_shared<ConnectionPool>();
-    m_connPool->setMessageCallBack(std::bind(&RpcChannel::getResponse,this,std::placeholders::_1));
+    m_connPool->setMessageCallBack(std::bind(&RpcChannel::getResponse, this, std::placeholders::_1));
 }
 
 RpcChannel::~RpcChannel()
@@ -18,43 +19,56 @@ RpcChannel::~RpcChannel()
     m_requestMap.clear();
 }
 
-void RpcChannel::callMethodAsync(const std::string &serviceName, 
-    const std::string &methodName, const std::string &request,
-     std::function<void(std::string)> func)
+void miniRpc::RpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
+                                     google::protobuf::RpcController *controller,
+                                     const google::protobuf::Message *request,
+                                     google::protobuf::Message *response,
+                                     google::protobuf::Closure *done)
 {
-    auto client = m_connPool->getConnection(serviceName);
-    if(client == nullptr)
+
+    const google::protobuf::ServiceDescriptor *serviced = method->service();
+    auto client = m_connPool->getConnection(serviced->name());
+    if (client == nullptr)
     {
         return;
     }
-    // json resjs{
-    //     {"service",serviceName},
-    //     {"method",methodName},
-    //     {"data",request}
-    // };
-    // static std::atomic<int64_t> m_requestId = 0;
-    // int requestId = ++m_requestId;
-    // BuildProto::enCodeRequest(resjs.dump(),requestId ,[&](const std::string& req)
-    // {
-    //     TcpConnectionPtr conn = client->connection();
-    //     if(conn && conn->isConnected())
-    //     {
-    //         conn->sendWithoutProto(req);
-    //         // std::cout << "发送成功" << req.size() << std::endl;
-    //         m_requestMap.emplace(requestId,func);
-    //     }
-    // });
+    TcpConnectionPtr conn = client->connection();
+    static std::atomic<int64_t> m_requestId = 0;
+    int requestId = ++m_requestId;
+    PendingCall pending{conn,requestId,done};
+    m_requestMap[requestId] = pending;
+    std::string servicename = method->service()->name();
+    std::string methodname = method->name();
+    std::string reqstring;
+    miniRpc::RpcHeader header;
+    header.set_methodname(methodname);
+    header.set_servicename(servicename);
+    std::string requestData;
+    request->SerializeToString(&requestData);
+    header.set_reqdata(requestData);
+    std::string sendData;
+    header.SerializeToString(&sendData);
+    std::cout << "发送数据长度:" << sendData.length() << std::endl;
+    BuildProto::enCodeRequest(sendData,requestId ,[&](const std::string& req)
+    {
+        if(conn && conn->isConnected())
+        {
+            conn->sendWithoutProto(req);
+        }
+    });
 }
 
-void RpcChannel::getResponse(Buffer* buffer)
+
+void RpcChannel::getResponse(Buffer *buffer)
 {
-    BuildProto::deCodeResponse(buffer,[&](const std::string& response,int64_t requestId){
-        // std::cout << "收到回复---" << response << std::endl;
+    BuildProto::deCodeResponse(buffer, [&](const std::string &response, int64_t requestId)
+                               {
+        std::cout << "收到回复---" << response << std::endl;
         auto it = m_requestMap.find(requestId);
         if(it != m_requestMap.end())
         {
-            it->second(response);
+            it->second.done->Run();
             m_requestMap.erase(it);
-        }
+        } 
     });
 }

@@ -49,6 +49,10 @@ ConnectionPool::~ConnectionPool()
     {
         m_thread.join();
     }
+    if(m_heartThread.joinable())
+    {
+        m_heartThread.join();
+    }
 }
 std::shared_ptr<TcpClient> ConnectionPool::getConnection(const std::string &servicename)
 {

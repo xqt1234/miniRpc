@@ -5,6 +5,8 @@
 #include <string.h>
 #include "public.h"
 #include "buildproto.h"
+#include "rpcheader.pb.h"
+#include <functional>
 using namespace mymuduo;
 using namespace miniRpc;
 miniRpc::ProVider::ProVider()
@@ -43,32 +45,32 @@ void ProVider::start()
                                             { m_loop->loop(); });
 }
 
-void ProVider::AddService(std::shared_ptr<RpcService> service)
+void ProVider::AddService(google::protobuf::Service* service)
 {
-    // m_serviceMap[service->m_name] = service;
-    // std::string loc = m_rootLoc + "/" + service->m_name;
-    // ZkClient &zk = RpcApplication::getZkClient();
-    // bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
-    // std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
-    // std::string host = loc + "/" + ip;
-    // if (res)
-    // {
-    //     std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
-    //     res = zk.createNode(host, "", ZOO_EPHEMERAL);
-    //     if (!res)
-    //     {
-    //         std::cout << "创建节点失败" << std::endl;
-    //     }
-    //     else
-    //     {
-    //         std::cout << "创建节点成功" << host << std::endl;
-    //     }
-    // }
+    std::string servicename = service->GetDescriptor()->name();
+    m_serviceMap.insert({servicename,service});
+    std::string loc = m_rootLoc + "/" + servicename;
+    ZkClient &zk = RpcApplication::getZkClient();
+    bool res = zk.createNode(loc, "", ZOO_PERSISTENT);
+    std::string ip = m_rpcIp + ":" + std::to_string(m_rpcPort);
+    std::string host = loc + "/" + ip;
+    if (res)
+    {
+        std::vector<std::string> nodes = zk.getNodeChildren(m_rootLoc);
+        res = zk.createNode(host, "", ZOO_EPHEMERAL);
+        if (!res)
+        {
+            std::cout << "创建节点失败" << std::endl;
+        }
+        else
+        {
+            std::cout << "创建节点成功" << host << std::endl;
+        }
+    }
 }
 
 void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 {
-    // std::cout << "收到长度" << len << std::endl;
     BuildProto::deCodeResponse(buffer,[&](const std::string &request,int64_t requestId){
         this->processReq(conn, request, requestId);
     });
@@ -79,25 +81,45 @@ void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::stri
     // {
     //     return;
     // }
-    // json js = json::parse(req);
-    // if(!js.contains("service") || !js.contains("method") || !js.contains("data"))
-    // {
-    //     return;
-    // }
-    // std::string sevicename = js["service"];
-    // std::string methodname = js["method"];
-    // std::string reqData = js["data"];
-    // auto it = m_serviceMap.find(sevicename);
-    // if (it == m_serviceMap.end())
-    // {
-    //     return;
-    // }
-    // auto method = it->second->CallAsyncMethod(methodname, reqData, [&](std::string response){ 
-    //         BuildProto::enCodeRequest(response,requestId,[&](std::string str){
-    //             conn->sendWithoutProto(str);
-    //         });
-            
-    // });
+    std::cout << "服务端收到消息，长度是:" << req.length() << std::endl;
+    RpcHeader header;
+    if(!header.ParseFromString(req))
+    {
+        std::cout << "解析 RPC 头失败" << std::endl;
+        return;
+    }
+    std::string servicename = header.servicename();
+    std::string methodname = header.methodname();
+    std::string reqData = header.reqdata();
+    
+    auto it = m_serviceMap.find(servicename);
+    if(it == m_serviceMap.end())
+    {
+        std::cout << "找不到服务" << servicename << std::endl;
+        return;
+    }
+    std::cout << "服务名称:" << servicename << " 函数名称:" << methodname << std::endl;
+    google::protobuf::Service* tservice = it->second;
+    const google::protobuf::MethodDescriptor* method = tservice->GetDescriptor()->FindMethodByName(methodname);
+    
+    std::shared_ptr<google::protobuf::Message> response(tservice->GetResponsePrototype(method).New());
+    std::unique_ptr<google::protobuf::Message> request(tservice->GetRequestPrototype(method).New());
+    auto info = std::make_shared<ConnectionInfo>();
+    info->conn = conn;
+    info->requestId = requestId;
+    info->response = response;
+    google::protobuf::Closure* callback = google::protobuf::NewCallback(this, &ProVider::handSend, response.get(),info);
+    request->ParseFromString(reqData);
+    tservice->CallMethod(method,nullptr,request.get(),info->response.get(),callback);
+}
+
+void miniRpc::ProVider::handSend(google::protobuf::Message* response,std::shared_ptr<ConnectionInfo> info)
+{
+    std::string res;
+    response->SerializeToString(&res);
+    BuildProto::enCodeRequest(res,info->requestId,[&](std::string str){
+                info->conn->sendWithoutProto(str);
+            });
 }
 
 void ProVider::onConnection(const TcpConnectionPtr &conn)
