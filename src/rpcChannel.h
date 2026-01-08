@@ -21,6 +21,7 @@ namespace miniRpc
             TcpConnectionPtr conn;
             int64_t requestId;
             google::protobuf::Closure* done;
+            google::protobuf::Message* msg;
         };
     private:
         std::shared_ptr<ConnectionPool> m_connPool;

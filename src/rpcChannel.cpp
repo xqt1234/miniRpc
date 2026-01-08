@@ -35,7 +35,7 @@ void miniRpc::RpcChannel::CallMethod(const google::protobuf::MethodDescriptor *m
     TcpConnectionPtr conn = client->connection();
     static std::atomic<int64_t> m_requestId = 0;
     int requestId = ++m_requestId;
-    PendingCall pending{conn,requestId,done};
+    PendingCall pending{conn,requestId,done,response};
     m_requestMap[requestId] = pending;
     std::string servicename = method->service()->name();
     std::string methodname = method->name();
@@ -63,10 +63,10 @@ void RpcChannel::getResponse(Buffer *buffer)
 {
     BuildProto::deCodeResponse(buffer, [&](const std::string &response, int64_t requestId)
                                {
-        std::cout << "收到回复---" << response << std::endl;
         auto it = m_requestMap.find(requestId);
         if(it != m_requestMap.end())
         {
+            it->second.msg->ParseFromString(response);
             it->second.done->Run();
             m_requestMap.erase(it);
         } 

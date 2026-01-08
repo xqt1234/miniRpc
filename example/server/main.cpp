@@ -16,7 +16,7 @@ int main()
     std::cout << servicename << ":" << servicename2 << std::endl;
     provider.AddService(&service);
     std::cout << "你好呀" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(500));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     return 0;
 }
 

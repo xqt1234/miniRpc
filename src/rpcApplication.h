@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "rpcService.h"
+// #include "rpcService.h"
 #include "provider.h"
 #include "rpcChannel.h"
 #include "rpcconfig.h"
@@ -10,7 +10,7 @@ namespace miniRpc
     {
     private:
         static std::unique_ptr<ZkClient> m_zkClient;
-        static std::unique_ptr<ThreadPool> m_threadPool;
+        static std::unique_ptr<miniRpc::ThreadPool> m_threadPool;
         static std::unique_ptr<RpcConfig> m_rpcConfig;
 
     public:
@@ -18,7 +18,7 @@ namespace miniRpc
         ~RpcApplication() = default;
         void init();
         static ZkClient& getZkClient();
-        static ThreadPool& getThreadPool();
+        static miniRpc::ThreadPool& getThreadPool();
         static RpcConfig& getRpcConfig();
     };
 }

@@ -1,6 +1,6 @@
 #include "rpcApplication.h"
 using namespace miniRpc;
-std::unique_ptr<ThreadPool> RpcApplication::m_threadPool = nullptr;
+std::unique_ptr<miniRpc::ThreadPool> RpcApplication::m_threadPool = nullptr;
 std::unique_ptr<ZkClient> RpcApplication::m_zkClient = nullptr;
 std::unique_ptr<RpcConfig> RpcApplication::m_rpcConfig = nullptr;
 RpcApplication::RpcApplication()
@@ -11,7 +11,7 @@ void miniRpc::RpcApplication::init()
 {
     m_rpcConfig = std::make_unique<RpcConfig>();
     m_rpcConfig->loadConfig("rpc.ini");
-    m_threadPool = std::make_unique<ThreadPool>();
+    m_threadPool = std::make_unique<miniRpc::ThreadPool>();
     m_threadPool->start();
     std::string zkip = m_rpcConfig->getValue("zkip");
     int16_t zkport = atoi(m_rpcConfig->getValue("zkport").c_str());
@@ -25,7 +25,7 @@ ZkClient &RpcApplication::getZkClient()
     return *m_zkClient.get();
 }
 
-ThreadPool &RpcApplication::getThreadPool()
+miniRpc::ThreadPool &RpcApplication::getThreadPool()
 {
     return *m_threadPool.get();
 }

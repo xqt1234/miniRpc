@@ -9,8 +9,8 @@ void MyRpcService::SayHello(google::protobuf::RpcController *controller, const :
 {
     std::cout << "sayhello 被调用" << std::endl;
     std::cout << "收到请求消息" << request->name() << std::endl;
-    response->set_message("收到消息啦");
-    done->Run();
+    std::string name = request->name();
+    response->set_message(name + ",你好");
 }
 
 void MyRpcService::GetData(google::protobuf::RpcController *controller, const ::miniRpc::DataRequest *request, ::miniRpc::DataResponse *response, ::google::protobuf::Closure *done)

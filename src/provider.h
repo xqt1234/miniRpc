@@ -4,7 +4,7 @@
 #include <functional>
 #include <memory>
 #include "threadpool.h"
-#include "rpcService.h"
+// #include "rpcService.h"
 #include "TcpServer.h"
 #include "TcpConnection.h"
 #include <google/protobuf/descriptor.h>
@@ -17,9 +17,10 @@ namespace miniRpc
     private:
         struct ConnectionInfo
         {
-            mymuduo::TcpConnectionPtr conn;
+            const mymuduo::TcpConnectionPtr& conn;
             int64_t requestId;
-            std::shared_ptr<google::protobuf::Message> response;
+            google::protobuf::Message* response;
+            google::protobuf::Message* request;
         };
         std::unordered_map<std::string, google::protobuf::Service *> m_serviceMap;
         // std::shared_ptr<ZkClient> m_zk;
@@ -42,6 +43,6 @@ namespace miniRpc
 
     private:
         void processReq(const mymuduo::TcpConnectionPtr &conn, const std::string &req, int64_t requestId);
-        void handSend(google::protobuf::Message*, std::shared_ptr<ConnectionInfo> info);
+        void handSend(const ConnectionInfo& conn);
     };
 }

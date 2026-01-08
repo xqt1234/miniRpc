@@ -77,10 +77,6 @@ void ProVider::onMessage(const TcpConnectionPtr &conn, Buffer *buffer)
 }
 void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::string &req,int64_t requestId)
 {
-    // if(req.size() == 0)
-    // {
-    //     return;
-    // }
     std::cout << "服务端收到消息，长度是:" << req.length() << std::endl;
     RpcHeader header;
     if(!header.ParseFromString(req))
@@ -101,24 +97,30 @@ void miniRpc::ProVider::processReq(const TcpConnectionPtr &conn, const std::stri
     std::cout << "服务名称:" << servicename << " 函数名称:" << methodname << std::endl;
     google::protobuf::Service* tservice = it->second;
     const google::protobuf::MethodDescriptor* method = tservice->GetDescriptor()->FindMethodByName(methodname);
-    
-    std::shared_ptr<google::protobuf::Message> response(tservice->GetResponsePrototype(method).New());
-    std::unique_ptr<google::protobuf::Message> request(tservice->GetRequestPrototype(method).New());
-    auto info = std::make_shared<ConnectionInfo>();
-    info->conn = conn;
-    info->requestId = requestId;
-    info->response = response;
-    google::protobuf::Closure* callback = google::protobuf::NewCallback(this, &ProVider::handSend, response.get(),info);
+    google::protobuf::Message* request = tservice->GetRequestPrototype(method).New();
     request->ParseFromString(reqData);
-    tservice->CallMethod(method,nullptr,request.get(),info->response.get(),callback);
+    google::protobuf::Message* response = tservice->GetResponsePrototype(method).New();
+    // google::protobuf::Closure* callback = google::protobuf::NewCallback(this, &ProVider::handSend,{conn,requestId,response,request});
+    
+    tservice->CallMethod(method,nullptr,request,response,nullptr);
+    std::string result;
+    response->SerializeToString(&result);
+    BuildProto::enCodeRequest(result,requestId,[&](std::string str){
+                conn->sendWithoutProto(str);
+                delete request;
+                delete response;
+            });
 }
 
-void miniRpc::ProVider::handSend(google::protobuf::Message* response,std::shared_ptr<ConnectionInfo> info)
+void miniRpc::ProVider::handSend(const ConnectionInfo& info)
 {
-    std::string res;
-    response->SerializeToString(&res);
-    BuildProto::enCodeRequest(res,info->requestId,[&](std::string str){
-                info->conn->sendWithoutProto(str);
+    std::string result;
+    info.response->SerializeToString(&result);
+    delete info.response;
+    delete info.request;
+    std::cout << "调用完毕:" << result << std::endl;
+    BuildProto::enCodeRequest(result,info.requestId,[&](std::string str){
+                info.conn->sendWithoutProto(str);
             });
 }
 
